@@ -3,14 +3,14 @@ const { paginatedQuery } = require("../utils/queryHelper");
 
 exports.getAll = async (req, res, next) => {
   try {
-    const result = await paginatedQuery(WaterIntake, req.query, ["notes"], "-date");
+    const result = await paginatedQuery(WaterIntake, req.query, ["notes"], "-date", "date", { userId: req.user.id });
     res.json(result);
   } catch (err) { next(err); }
 };
 
 exports.getById = async (req, res, next) => {
   try {
-    const record = await WaterIntake.findById(req.params.id);
+    const record = await WaterIntake.findOne({ _id: req.params.id, userId: req.user.id });
     if (!record) return res.status(404).json({ error: "Record not found" });
     res.json(record);
   } catch (err) { next(err); }
@@ -18,7 +18,7 @@ exports.getById = async (req, res, next) => {
 
 exports.create = async (req, res, next) => {
   try {
-    const record = await WaterIntake.create(req.body);
+    const record = await WaterIntake.create({ ...req.body, userId: req.user.id });
     res.status(201).json(record);
   } catch (err) {
     if (err.name === "ValidationError") return res.status(400).json({ error: err.message });
@@ -28,7 +28,8 @@ exports.create = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    const record = await WaterIntake.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const { userId, ...body } = req.body;
+    const record = await WaterIntake.findOneAndUpdate({ _id: req.params.id, userId: req.user.id }, body, { new: true, runValidators: true });
     if (!record) return res.status(404).json({ error: "Record not found" });
     res.json(record);
   } catch (err) {
@@ -39,7 +40,7 @@ exports.update = async (req, res, next) => {
 
 exports.remove = async (req, res, next) => {
   try {
-    const record = await WaterIntake.findByIdAndDelete(req.params.id);
+    const record = await WaterIntake.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
     if (!record) return res.status(404).json({ error: "Record not found" });
     res.json({ message: "Record deleted" });
   } catch (err) { next(err); }

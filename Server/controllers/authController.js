@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
@@ -67,6 +68,15 @@ exports.login = async (req, res, next) => {
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return res.status(401).json({ error: "Invalid email or password." });
+
+    // If MFA is enabled, don't issue token yet
+    if (user.mfaEnabled && user.mfaMethod) {
+      return res.json({
+        mfaRequired: true,
+        mfaMethod: user.mfaMethod,
+        userId: user._id,
+      });
+    }
 
     const token = signToken(user);
 
@@ -146,6 +156,25 @@ exports.updateProfile = async (req, res, next) => {
   }
 };
 
+// PUT /api/auth/change-password
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: "Both current and new password are required." });
+    if (newPassword.length < 6) return res.status(400).json({ error: "New password must be at least 6 characters." });
+
+    const user = await User.findById(req.user.id).select("+password");
+    if (!user) return res.status(404).json({ error: "User not found." });
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) return res.status(401).json({ error: "Current password is incorrect." });
+
+    user.password = newPassword;
+    await user.save();
+    res.json({ message: "Password changed successfully." });
+  } catch (err) { next(err); }
+};
+
 // POST /api/auth/avatar
 exports.uploadAvatar = async (req, res, next) => {
   try {
@@ -159,4 +188,47 @@ exports.uploadAvatar = async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+};
+
+// POST /api/auth/forgot-password
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required." });
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    // Always return success to avoid email enumeration
+    if (!user) return res.json({ message: "If that email exists, a reset code has been sent." });
+
+    const token = crypto.randomInt(100000, 999999).toString();
+    user.resetToken = token;
+    user.resetTokenExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+    await user.save();
+
+    // In production, send via real email service
+    console.log(`[PASSWORD RESET] Code for ${user.email}: ${token}`);
+
+    res.json({ message: "If that email exists, a reset code has been sent." });
+  } catch (err) { next(err); }
+};
+
+// POST /api/auth/reset-password
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { email, token, newPassword } = req.body;
+    if (!email || !token || !newPassword) return res.status(400).json({ error: "Email, code, and new password are required." });
+    if (newPassword.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters." });
+
+    const user = await User.findOne({ email: email.toLowerCase() }).select("+resetToken +resetTokenExpires");
+    if (!user || user.resetToken !== token || !user.resetTokenExpires || user.resetTokenExpires < new Date()) {
+      return res.status(400).json({ error: "Invalid or expired reset code." });
+    }
+
+    user.password = newPassword;
+    user.resetToken = undefined;
+    user.resetTokenExpires = undefined;
+    await user.save();
+
+    res.json({ message: "Password has been reset. You can now log in." });
+  } catch (err) { next(err); }
 };

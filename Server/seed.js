@@ -25,27 +25,34 @@ function rand(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+const SEED_EMAIL = "john@wellness.com";
+
 async function seed() {
   await mongoose.connect(uri);
   console.log("Connected to MongoDB — seeding...");
 
-  // Clear existing data
-  await Promise.all([
-    Activity.deleteMany({}),
-    Meal.deleteMany({}),
-    Sleep.deleteMany({}),
-    Goal.deleteMany({}),
-    BloodPressure.deleteMany({}),
-    BloodGlucose.deleteMany({}),
-    HeartRate.deleteMany({}),
-    Weight.deleteMany({}),
-    User.deleteMany({}),
-    WaterIntake.deleteMany({}),
-  ]);
+  // Remove existing john account and its data (leave other users untouched)
+  const existing = await User.findOne({ email: SEED_EMAIL });
+  if (existing) {
+    const uid = existing._id;
+    await Promise.all([
+      Activity.deleteMany({ userId: uid }),
+      Meal.deleteMany({ userId: uid }),
+      Sleep.deleteMany({ userId: uid }),
+      Goal.deleteMany({ userId: uid }),
+      BloodPressure.deleteMany({ userId: uid }),
+      BloodGlucose.deleteMany({ userId: uid }),
+      HeartRate.deleteMany({ userId: uid }),
+      Weight.deleteMany({ userId: uid }),
+      WaterIntake.deleteMany({ userId: uid }),
+      User.deleteOne({ _id: uid }),
+    ]);
+    console.log("  Cleared previous seed data for " + SEED_EMAIL);
+  }
 
   // --- Sample User ---
   const john = await User.create({
-    email: "john@wellness.com",
+    email: SEED_EMAIL,
     password: "test1234",
     name: "John Smith",
     age: 34,
@@ -64,6 +71,7 @@ async function seed() {
     const type = activityTypes[rand(0, activityTypes.length - 1)];
     const duration = rand(15, 90);
     activities.push({
+      userId: john._id,
       type,
       duration,
       caloriesBurned: estimateCalories(type, duration, SEED_WEIGHT_LBS),
@@ -87,6 +95,7 @@ async function seed() {
     for (const mealType of ["breakfast", "lunch", "dinner"]) {
       const names = mealNames[mealType];
       meals.push({
+        userId: john._id,
         name: names[rand(0, names.length - 1)],
         mealType,
         calories: rand(200, 800),
@@ -98,6 +107,7 @@ async function seed() {
     }
     if (rand(0, 1)) {
       meals.push({
+        userId: john._id,
         name: mealNames.snack[rand(0, mealNames.snack.length - 1)],
         mealType: "snack",
         calories: rand(100, 300),
@@ -122,6 +132,7 @@ async function seed() {
     const wakeTime = new Date(bedtime);
     wakeTime.setHours(wakeTime.getHours() + sleepHours);
     sleepRecords.push({
+      userId: john._id,
       bedtime,
       wakeTime,
       quality: qualities[rand(0, qualities.length - 1)],
@@ -148,7 +159,7 @@ async function seed() {
   // --- Blood Pressure (30 days) ---
   const bpRecords = [];
   for (let i = 0; i < 30; i++) {
-    bpRecords.push({ systolic: rand(110, 140), diastolic: rand(65, 90), pulse: rand(60, 85), date: daysAgo(i) });
+    bpRecords.push({ userId: john._id, systolic: rand(110, 140), diastolic: rand(65, 90), pulse: rand(60, 85), date: daysAgo(i) });
   }
   await BloodPressure.insertMany(bpRecords);
   console.log(`  ${bpRecords.length} blood pressure`);
@@ -157,7 +168,7 @@ async function seed() {
   const measurementTypes = ["fasting", "before_meal", "after_meal", "bedtime"];
   const bgRecords = [];
   for (let i = 0; i < 30; i++) {
-    bgRecords.push({ level: rand(70, 130), measurementType: measurementTypes[rand(0, measurementTypes.length - 1)], date: daysAgo(i) });
+    bgRecords.push({ userId: john._id, level: rand(70, 130), measurementType: measurementTypes[rand(0, measurementTypes.length - 1)], date: daysAgo(i) });
   }
   await BloodGlucose.insertMany(bgRecords);
   console.log(`  ${bgRecords.length} blood glucose`);
@@ -166,7 +177,7 @@ async function seed() {
   const contexts = ["resting", "active", "post_exercise", "sleeping"];
   const hrRecords = [];
   for (let i = 0; i < 30; i++) {
-    hrRecords.push({ bpm: rand(55, 110), context: contexts[rand(0, contexts.length - 1)], date: daysAgo(i) });
+    hrRecords.push({ userId: john._id, bpm: rand(55, 110), context: contexts[rand(0, contexts.length - 1)], date: daysAgo(i) });
   }
   await HeartRate.insertMany(hrRecords);
   console.log(`  ${hrRecords.length} heart rate`);
@@ -176,7 +187,7 @@ async function seed() {
   let w = SEED_WEIGHT_LBS;
   for (let i = 29; i >= 0; i--) {
     w -= Math.random() * 0.5;
-    weightRecords.push({ value: Math.round(w * 10) / 10, unit: "lbs", date: daysAgo(i) });
+    weightRecords.push({ userId: john._id, value: Math.round(w * 10) / 10, unit: "lbs", date: daysAgo(i) });
   }
   await Weight.insertMany(weightRecords);
   console.log(`  ${weightRecords.length} weight`);

@@ -9,9 +9,12 @@ import Goals from "./pages/Goals";
 import Vitals from "./pages/Vitals";
 import WaterIntake from "./pages/WaterIntake";
 import Profile from "./pages/Profile";
+import Account from "./pages/Account";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Wizard from "./pages/Wizard";
+import ForgotPassword from "./pages/ForgotPassword";
+import Journal from "./pages/Journal";
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -43,6 +46,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+        <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
         <Route path="/wizard" element={<WizardRoute />} />
         <Route path="/*" element={
           <ProtectedRoute>
@@ -56,6 +60,8 @@ export default function App() {
                 <Route path="/vitals" element={<Vitals />} />
                 <Route path="/water" element={<WaterIntake />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/account" element={<Account />} />
+                <Route path="/journal" element={<Journal />} />
               </Routes>
             </Layout>
           </ProtectedRoute>

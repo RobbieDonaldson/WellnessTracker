@@ -48,12 +48,14 @@ function parseQuery(query, searchFields = [], defaultSort = "-date", dateField =
 
 /**
  * Execute a paginated query and return { data, meta }.
+ * @param {object} baseFilter - extra filter merged into every query (e.g. { userId })
  */
-async function paginatedQuery(Model, query, searchFields, defaultSort, dateField) {
+async function paginatedQuery(Model, query, searchFields, defaultSort, dateField, baseFilter = {}) {
   const { filter, sort, skip, limit, page, pageSize } = parseQuery(query, searchFields, defaultSort, dateField);
+  const merged = { ...baseFilter, ...filter };
   const [data, total] = await Promise.all([
-    Model.find(filter).sort(sort).skip(skip).limit(limit).lean(),
-    Model.countDocuments(filter),
+    Model.find(merged).sort(sort).skip(skip).limit(limit).lean(),
+    Model.countDocuments(merged),
   ]);
   return {
     data,

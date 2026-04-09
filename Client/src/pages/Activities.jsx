@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { Plus, Pencil, Trash2, X, Search, ChevronUp, ChevronDown, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Calendar } from "lucide-react";
 import { activityApi } from "../api";
 import api from "../api";
@@ -20,7 +22,7 @@ export default function Activities() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ type: "", duration: "", caloriesBurned: 0, distance: "", notes: "", date: "", manualCalories: false });
+  const [form, setForm] = useState({ type: "", duration: "", caloriesBurned: 0, distance: "", notes: "", date: new Date(), manualCalories: false });
   const [estimating, setEstimating] = useState(false);
 
   // Grid state
@@ -87,7 +89,7 @@ export default function Activities() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ type: "", duration: "", caloriesBurned: 0, distance: "", notes: "", date: "", manualCalories: false });
+    setForm({ type: "", duration: "", caloriesBurned: 0, distance: "", notes: "", date: new Date(), manualCalories: false });
     setShowForm(true);
   };
 
@@ -99,7 +101,7 @@ export default function Activities() {
       caloriesBurned: row.caloriesBurned,
       distance: row.distance ?? "",
       notes: row.notes ?? "",
-      date: row.date ? new Date(row.date).toISOString().slice(0, 10) : "",
+      date: row.date ? new Date(row.date) : new Date(),
       manualCalories: false,
     });
     setShowForm(true);
@@ -108,6 +110,7 @@ export default function Activities() {
   const save = async (e) => {
     e.preventDefault();
     const payload = { ...form, duration: Number(form.duration), caloriesBurned: Number(form.caloriesBurned) };
+    if (payload.date instanceof Date) payload.date = payload.date.toISOString();
     if (form.distance) payload.distance = Number(form.distance);
     if (editing) await activityApi.update(editing, payload);
     else await activityApi.create(payload);
@@ -257,7 +260,12 @@ export default function Activities() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" />
+                <DatePicker
+                  selected={form.date instanceof Date ? form.date : form.date ? new Date(form.date) : null}
+                  onChange={(d) => setForm({ ...form, date: d })}
+                  dateFormat="MMMM d, yyyy"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">

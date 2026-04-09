@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const mealSchema = new mongoose.Schema(
   {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     name: {
       type: String,
       required: [true, "Meal name is required"],

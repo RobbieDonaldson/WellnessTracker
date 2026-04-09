@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const bloodPressureSchema = new mongoose.Schema(
   {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     systolic: {
       type: Number,
       required: [true, "Systolic value is required"],

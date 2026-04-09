@@ -57,6 +57,16 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // MFA
+    mfaEnabled: { type: Boolean, default: false },
+    mfaMethod: { type: String, enum: ["totp", "email", "sms", ""], default: "" },
+    totpSecret: { type: String, select: false },
+    phone: { type: String, trim: true, default: "" },
+    pendingOtp: { type: String, select: false },
+    pendingOtpExpires: { type: Date, select: false },
+    // Password reset
+    resetToken: { type: String, select: false },
+    resetTokenExpires: { type: Date, select: false },
   },
   { timestamps: true }
 );

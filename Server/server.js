@@ -22,6 +22,7 @@ const heartRateRoutes = require("./routes/heartRateRoutes");
 const weightRoutes = require("./routes/weightRoutes");
 const authRoutes = require("./routes/authRoutes");
 const waterIntakeRoutes = require("./routes/waterIntakeRoutes");
+const journalRoutes = require("./routes/journalRoutes");
 const { verifyToken } = require("./middleware/auth");
 
 const app = express();
@@ -106,6 +107,7 @@ app.use("/api/blood-glucose", apiLimiter, verifyToken, bloodGlucoseRoutes);
 app.use("/api/heart-rate", apiLimiter, verifyToken, heartRateRoutes);
 app.use("/api/weight", apiLimiter, verifyToken, weightRoutes);
 app.use("/api/water-intake", apiLimiter, verifyToken, waterIntakeRoutes);
+app.use("/api/journal", apiLimiter, verifyToken, journalRoutes);
 
 // ---------------------------------------------------------------------------
 // SPA fallback — serve React app for all non-API routes in production

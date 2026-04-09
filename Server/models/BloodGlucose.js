@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const bloodGlucoseSchema = new mongoose.Schema(
   {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     level: {
       type: Number,
       required: [true, "Glucose level is required"],

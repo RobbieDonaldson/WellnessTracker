@@ -88,7 +88,17 @@ export const authApi = {
     form.append("avatar", file);
     return api.post("/auth/avatar", form, { headers: { "Content-Type": "multipart/form-data" } });
   },
+  changePassword: (data) => api.put("/auth/change-password", data),
+  forgotPassword: (data) => api.post("/auth/forgot-password", data),
+  resetPassword: (data) => api.post("/auth/reset-password", data),
   completeWizard: (data) => api.post("/auth/complete-wizard", data),
+  // MFA
+  mfaSendOtp: (data) => api.post("/auth/mfa/send-otp", data),
+  mfaVerify: (data) => api.post("/auth/mfa/verify", data),
+  mfaSetupTotp: () => api.post("/auth/mfa/setup"),
+  mfaVerifySetup: (data) => api.post("/auth/mfa/verify-setup", data),
+  mfaEnableOtp: (data) => api.post("/auth/mfa/enable-otp", data),
+  mfaDisable: () => api.post("/auth/mfa/disable"),
 };
 
 export const waterIntakeApi = {
@@ -96,6 +106,14 @@ export const waterIntakeApi = {
   create: (data) => api.post("/water-intake", data),
   update: (id, data) => api.put(`/water-intake/${id}`, data),
   remove: (id) => api.delete(`/water-intake/${id}`),
+};
+
+export const journalApi = {
+  getAll: (params) => api.get("/journal", { params }),
+  create: (data) => api.post("/journal", data),
+  update: (id, data) => api.put(`/journal/${id}`, data),
+  remove: (id) => api.delete(`/journal/${id}`),
+  getVerses: (mood) => api.get("/journal/verses", { params: { mood } }),
 };
 
 export default api;

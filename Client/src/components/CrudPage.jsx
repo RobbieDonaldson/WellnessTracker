@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { Plus, Pencil, Trash2, X, Search, ChevronUp, ChevronDown, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Calendar } from "lucide-react";
 import { RANGES, getDateRange } from "../utils/dateRanges";
 
@@ -60,7 +62,13 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra 
   const openNew = () => {
     setEditing(null);
     const defaults = {};
-    formFields.forEach((f) => { defaults[f.name] = f.default ?? ""; });
+    formFields.forEach((f) => {
+      if ((f.type === "date" || f.type === "datetime-local") && f.default === undefined) {
+        defaults[f.name] = new Date();
+      } else {
+        defaults[f.name] = f.default ?? "";
+      }
+    });
     setForm(defaults);
     setShowForm(true);
   };
@@ -71,7 +79,7 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra 
     formFields.forEach((f) => {
       let v = row[f.name];
       if (f.type === "date" || f.type === "datetime-local") {
-        v = v ? new Date(v).toISOString().slice(0, f.type === "date" ? 10 : 16) : "";
+        v = v ? new Date(v) : null;
       }
       vals[f.name] = v ?? "";
     });
@@ -81,8 +89,14 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra 
 
   const save = async (e) => {
     e.preventDefault();
-    if (editing) await api.update(editing, form);
-    else await api.create(form);
+    const payload = { ...form };
+    formFields.forEach((f) => {
+      if ((f.type === "date" || f.type === "datetime-local") && payload[f.name] instanceof Date) {
+        payload[f.name] = payload[f.name].toISOString();
+      }
+    });
+    if (editing) await api.update(editing, payload);
+    else await api.create(payload);
     setShowForm(false);
     load();
   };
@@ -230,6 +244,23 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra 
                       onChange={(e) => setForm({ ...form, [f.name]: e.target.value })}
                       className="w-full border rounded-lg px-3 py-2 text-sm"
                       rows={3}
+                      required={f.required}
+                    />
+                  ) : f.type === "date" ? (
+                    <DatePicker
+                      selected={form[f.name] instanceof Date ? form[f.name] : form[f.name] ? new Date(form[f.name]) : null}
+                      onChange={(d) => setForm({ ...form, [f.name]: d })}
+                      dateFormat="MMMM d, yyyy"
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                      required={f.required}
+                    />
+                  ) : f.type === "datetime-local" ? (
+                    <DatePicker
+                      selected={form[f.name] instanceof Date ? form[f.name] : form[f.name] ? new Date(form[f.name]) : null}
+                      onChange={(d) => setForm({ ...form, [f.name]: d })}
+                      showTimeSelect
+                      dateFormat="MMMM d, yyyy h:mm aa"
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
                       required={f.required}
                     />
                   ) : (

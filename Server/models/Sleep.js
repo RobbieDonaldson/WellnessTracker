@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const sleepSchema = new mongoose.Schema(
   {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     bedtime: {
       type: Date,
       required: [true, "Bedtime is required"],

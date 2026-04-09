@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -8,9 +9,12 @@ import {
   Target,
   HeartPulse,
   Droplets,
+  BookHeart,
   UserCircle,
+  Settings,
   LogOut,
   User,
+  ChevronDown,
 } from "lucide-react";
 
 const links = [
@@ -21,17 +25,28 @@ const links = [
   { to: "/goals", label: "Goals", icon: Target },
   { to: "/vitals", label: "Vitals", icon: HeartPulse },
   { to: "/water", label: "Water Intake", icon: Droplets },
-  { to: "/profile", label: "Profile", icon: UserCircle },
+  { to: "/journal", label: "Journal", icon: BookHeart },
 ];
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return (
     <div className="min-h-screen flex">
@@ -59,31 +74,59 @@ export default function Layout({ children }) {
             </NavLink>
           ))}
         </nav>
-        {/* User footer */}
-        <div className="px-4 py-4 border-t border-indigo-600">
-          <div className="flex items-center gap-3">
-            {user?.avatar ? (
-              <img src={user.avatar} alt="" className="w-9 h-9 rounded-full object-cover border-2 border-indigo-400 shrink-0" />
-            ) : (
-              <div className="w-9 h-9 rounded-full bg-indigo-500 flex items-center justify-center border-2 border-indigo-400 shrink-0">
-                <User size={18} className="text-indigo-200" />
-              </div>
-            )}
-            <div className="text-sm truncate flex-1">
-              <p className="font-medium">{user?.name}</p>
-              <p className="text-indigo-300 text-xs">{user?.role}</p>
-            </div>
-            <button onClick={handleLogout} className="text-indigo-200 hover:text-white p-1.5 rounded-lg hover:bg-indigo-600" title="Sign out">
-              <LogOut size={18} />
-            </button>
-          </div>
-        </div>
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 overflow-auto">
-        <div className="max-w-7xl mx-auto px-6 py-8">{children}</div>
-      </main>
+      {/* Main area */}
+      <div className="flex-1 flex flex-col overflow-auto">
+        {/* Top bar */}
+        <header className="h-14 border-b bg-white flex items-center justify-end px-6 shrink-0">
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="flex items-center gap-2 hover:bg-gray-100 rounded-lg px-2 py-1.5 transition"
+            >
+              {user?.avatar ? (
+                <img src={user.avatar} alt="" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center border border-gray-200">
+                  <User size={16} className="text-indigo-500" />
+                </div>
+              )}
+              <span className="text-sm font-medium text-gray-700 hidden sm:inline">{user?.name}</span>
+              <ChevronDown size={14} className="text-gray-400" />
+            </button>
+
+            {menuOpen && (
+              <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border py-1 z-50">
+                <button
+                  onClick={() => { setMenuOpen(false); navigate("/profile"); }}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <UserCircle size={16} /> Profile
+                </button>
+                <button
+                  onClick={() => { setMenuOpen(false); navigate("/account"); }}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <Settings size={16} /> Account
+                </button>
+                <hr className="my-1" />
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                >
+                  <LogOut size={16} /> Sign Out
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {/* Page content */}
+        <main className="flex-1 overflow-auto">
+          <div className="max-w-7xl mx-auto px-6 py-8">{children}</div>
+        </main>
+      </div>
     </div>
   );
 }

@@ -4,7 +4,7 @@ const { paginatedQuery } = require("../utils/queryHelper");
 // GET /api/meals
 exports.getAll = async (req, res, next) => {
   try {
-    const result = await paginatedQuery(Meal, req.query, ["name", "mealType"], "-date");
+    const result = await paginatedQuery(Meal, req.query, ["name", "mealType"], "-date", "date", { userId: req.user.id });
     res.json(result);
   } catch (err) {
     next(err);
@@ -14,7 +14,7 @@ exports.getAll = async (req, res, next) => {
 // GET /api/meals/:id
 exports.getById = async (req, res, next) => {
   try {
-    const meal = await Meal.findById(req.params.id);
+    const meal = await Meal.findOne({ _id: req.params.id, userId: req.user.id });
     if (!meal) return res.status(404).json({ error: "Meal not found" });
     res.json(meal);
   } catch (err) {
@@ -25,7 +25,7 @@ exports.getById = async (req, res, next) => {
 // POST /api/meals
 exports.create = async (req, res, next) => {
   try {
-    const meal = await Meal.create(req.body);
+    const meal = await Meal.create({ ...req.body, userId: req.user.id });
     res.status(201).json(meal);
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -38,7 +38,8 @@ exports.create = async (req, res, next) => {
 // PUT /api/meals/:id
 exports.update = async (req, res, next) => {
   try {
-    const meal = await Meal.findByIdAndUpdate(req.params.id, req.body, {
+    const { userId, ...body } = req.body;
+    const meal = await Meal.findOneAndUpdate({ _id: req.params.id, userId: req.user.id }, body, {
       new: true,
       runValidators: true,
     });
@@ -55,7 +56,7 @@ exports.update = async (req, res, next) => {
 // DELETE /api/meals/:id
 exports.remove = async (req, res, next) => {
   try {
-    const meal = await Meal.findByIdAndDelete(req.params.id);
+    const meal = await Meal.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
     if (!meal) return res.status(404).json({ error: "Meal not found" });
     res.json({ message: "Meal deleted" });
   } catch (err) {

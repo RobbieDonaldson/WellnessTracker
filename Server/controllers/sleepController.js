@@ -4,7 +4,7 @@ const { paginatedQuery } = require("../utils/queryHelper");
 // GET /api/sleep
 exports.getAll = async (req, res, next) => {
   try {
-    const result = await paginatedQuery(Sleep, req.query, ["quality"], "-date");
+    const result = await paginatedQuery(Sleep, req.query, ["quality"], "-date", "date", { userId: req.user.id });
     res.json(result);
   } catch (err) {
     next(err);
@@ -14,7 +14,7 @@ exports.getAll = async (req, res, next) => {
 // GET /api/sleep/:id
 exports.getById = async (req, res, next) => {
   try {
-    const record = await Sleep.findById(req.params.id);
+    const record = await Sleep.findOne({ _id: req.params.id, userId: req.user.id });
     if (!record) return res.status(404).json({ error: "Sleep record not found" });
     res.json(record);
   } catch (err) {
@@ -25,7 +25,7 @@ exports.getById = async (req, res, next) => {
 // POST /api/sleep
 exports.create = async (req, res, next) => {
   try {
-    const record = new Sleep(req.body);
+    const record = new Sleep({ ...req.body, userId: req.user.id });
     await record.save();
     res.status(201).json(record);
   } catch (err) {
@@ -39,10 +39,11 @@ exports.create = async (req, res, next) => {
 // PUT /api/sleep/:id
 exports.update = async (req, res, next) => {
   try {
-    const record = await Sleep.findById(req.params.id);
+    const record = await Sleep.findOne({ _id: req.params.id, userId: req.user.id });
     if (!record) return res.status(404).json({ error: "Sleep record not found" });
 
-    Object.assign(record, req.body);
+    const { userId, ...body } = req.body;
+    Object.assign(record, body);
     await record.save();
     res.json(record);
   } catch (err) {
@@ -56,7 +57,7 @@ exports.update = async (req, res, next) => {
 // DELETE /api/sleep/:id
 exports.remove = async (req, res, next) => {
   try {
-    const record = await Sleep.findByIdAndDelete(req.params.id);
+    const record = await Sleep.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
     if (!record) return res.status(404).json({ error: "Sleep record not found" });
     res.json({ message: "Sleep record deleted" });
   } catch (err) {

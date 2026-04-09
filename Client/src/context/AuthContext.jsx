@@ -29,10 +29,18 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const { data } = await authApi.login({ email, password });
+    // MFA challenge — don't store token yet
+    if (data.mfaRequired) return data;
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
     setUser(data.user);
     return data;
+  };
+
+  const completeMfaLogin = (data) => {
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("user", JSON.stringify(data.user));
+    setUser(data.user);
   };
 
   const register = async (formData) => {
@@ -55,7 +63,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, completeMfaLogin, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

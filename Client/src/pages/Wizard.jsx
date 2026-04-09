@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { authApi } from "../api";
@@ -263,11 +265,12 @@ export default function Wizard() {
                               placeholder="unit"
                             />
                           </div>
-                          <input
-                            type="date"
-                            value={g.endDate}
-                            onChange={(e) => updateGoal(idx, "endDate", e.target.value)}
+                          <DatePicker
+                            selected={g.endDate ? new Date(g.endDate) : null}
+                            onChange={(d) => updateGoal(idx, "endDate", d ? d.toISOString().slice(0, 10) : "")}
+                            dateFormat="MMMM d, yyyy"
                             className="w-full border rounded-lg px-3 py-2 text-sm"
+                            placeholderText="Select end date"
                           />
                         </div>
                       )}

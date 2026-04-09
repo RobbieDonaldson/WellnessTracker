@@ -4,7 +4,7 @@ const { paginatedQuery } = require("../utils/queryHelper");
 // GET /api/goals
 exports.getAll = async (req, res, next) => {
   try {
-    const result = await paginatedQuery(Goal, req.query, ["title", "category", "unit"], "endDate", "endDate");
+    const result = await paginatedQuery(Goal, req.query, ["title", "category", "unit"], "endDate", "endDate", { userId: req.user.id });
     res.json(result);
   } catch (err) {
     next(err);
@@ -14,7 +14,7 @@ exports.getAll = async (req, res, next) => {
 // GET /api/goals/:id
 exports.getById = async (req, res, next) => {
   try {
-    const goal = await Goal.findById(req.params.id);
+    const goal = await Goal.findOne({ _id: req.params.id, userId: req.user.id });
     if (!goal) return res.status(404).json({ error: "Goal not found" });
     res.json(goal);
   } catch (err) {
@@ -25,7 +25,7 @@ exports.getById = async (req, res, next) => {
 // POST /api/goals
 exports.create = async (req, res, next) => {
   try {
-    const goal = await Goal.create(req.body);
+    const goal = await Goal.create({ ...req.body, userId: req.user.id });
     res.status(201).json(goal);
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -38,7 +38,8 @@ exports.create = async (req, res, next) => {
 // PUT /api/goals/:id
 exports.update = async (req, res, next) => {
   try {
-    const goal = await Goal.findByIdAndUpdate(req.params.id, req.body, {
+    const { userId, ...body } = req.body;
+    const goal = await Goal.findOneAndUpdate({ _id: req.params.id, userId: req.user.id }, body, {
       new: true,
       runValidators: true,
     });
@@ -55,7 +56,7 @@ exports.update = async (req, res, next) => {
 // DELETE /api/goals/:id
 exports.remove = async (req, res, next) => {
   try {
-    const goal = await Goal.findByIdAndDelete(req.params.id);
+    const goal = await Goal.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
     if (!goal) return res.status(404).json({ error: "Goal not found" });
     res.json({ message: "Goal deleted" });
   } catch (err) {
