@@ -323,6 +323,7 @@ export default function Journal() {
                   showTimeSelect
                   dateFormat="MMMM d, yyyy h:mm aa"
                   className="w-full border rounded-lg px-3 py-2 text-sm"
+                  withPortal
                 />
               </div>
             </div>

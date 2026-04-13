@@ -6,7 +6,7 @@ import { RANGES, getDateRange } from "../utils/dateRanges";
 
 const PAGE_SIZES = [10, 20, 50];
 
-export default function CrudPage({ title, api, columns, formFields, renderExtra }) {
+export default function CrudPage({ title, api, columns, formFields, renderExtra, defaultRange = "week" }) {
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState({ page: 1, pageSize: 20, totalPages: 1, totalCount: 0 });
   const [loading, setLoading] = useState(true);
@@ -20,7 +20,7 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra 
   const [sortDir, setSortDir] = useState("desc");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [range, setRange] = useState("week");
+  const [range, setRange] = useState(defaultRange);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -246,15 +246,7 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra 
                       rows={3}
                       required={f.required}
                     />
-                  ) : f.type === "date" ? (
-                    <DatePicker
-                      selected={form[f.name] instanceof Date ? form[f.name] : form[f.name] ? new Date(form[f.name]) : null}
-                      onChange={(d) => setForm({ ...form, [f.name]: d })}
-                      dateFormat="MMMM d, yyyy"
-                      className="w-full border rounded-lg px-3 py-2 text-sm"
-                      required={f.required}
-                    />
-                  ) : f.type === "datetime-local" ? (
+                  ) : f.type === "date" || f.type === "datetime-local" ? (
                     <DatePicker
                       selected={form[f.name] instanceof Date ? form[f.name] : form[f.name] ? new Date(form[f.name]) : null}
                       onChange={(d) => setForm({ ...form, [f.name]: d })}
@@ -262,6 +254,7 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra 
                       dateFormat="MMMM d, yyyy h:mm aa"
                       className="w-full border rounded-lg px-3 py-2 text-sm"
                       required={f.required}
+                      withPortal
                     />
                   ) : (
                     <input

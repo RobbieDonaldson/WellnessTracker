@@ -44,7 +44,7 @@ const GOAL_CATEGORIES = [
     suggestion: { title: "Keep BP under 130/85", targetValue: 30, unit: "days", endDays: 30 },
   },
   {
-    key: "glucose",
+    key: "blood_glucose",
     label: "Blood Glucose",
     color: "bg-amber-100 text-amber-700",
     suggestion: { title: "Maintain fasting glucose < 100", targetValue: 30, unit: "days", endDays: 30 },
@@ -54,6 +54,12 @@ const GOAL_CATEGORIES = [
     label: "Heart Rate",
     color: "bg-pink-100 text-pink-700",
     suggestion: { title: "Maintain resting HR under 75 bpm", targetValue: 30, unit: "days", endDays: 30 },
+  },
+  {
+    key: "journal",
+    label: "Journal",
+    color: "bg-amber-100 text-amber-700",
+    suggestion: { title: "Journal at least 1 time a day", targetValue: 30, unit: "days", endDays: 30 },
   },
 ];
 
@@ -267,10 +273,12 @@ export default function Wizard() {
                           </div>
                           <DatePicker
                             selected={g.endDate ? new Date(g.endDate) : null}
-                            onChange={(d) => updateGoal(idx, "endDate", d ? d.toISOString().slice(0, 10) : "")}
-                            dateFormat="MMMM d, yyyy"
+                            onChange={(d) => updateGoal(idx, "endDate", d ? d.toISOString() : "")}
+                            showTimeSelect
+                            dateFormat="MMMM d, yyyy h:mm aa"
                             className="w-full border rounded-lg px-3 py-2 text-sm"
-                            placeholderText="Select end date"
+                            placeholderText="Select end date & time"
+                            withPortal
                           />
                         </div>
                       )}

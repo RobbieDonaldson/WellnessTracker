@@ -14,7 +14,7 @@ async function getLatestWeight(userId) {
 // GET /api/activities
 exports.getAll = async (req, res, next) => {
   try {
-    const result = await paginatedQuery(Activity, req.query, ["type", "notes"], "-date", "date", { userId: req.user.id });
+    const result = await paginatedQuery(Activity, req.query, ["name", "type", "notes"], "-date", "date", { userId: req.user.id });
     res.json(result);
   } catch (err) {
     next(err);

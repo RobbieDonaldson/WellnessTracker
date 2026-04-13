@@ -58,14 +58,14 @@ app.use(
 // Rate limiting
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.API_RATE_LIMIT) || 100,
+  max: parseInt(process.env.API_RATE_LIMIT) || 500,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests, please try again later." },
 });
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: parseInt(process.env.AUTH_RATE_LIMIT) || 20,
+  max: parseInt(process.env.AUTH_RATE_LIMIT) || 50,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many auth attempts, please try again later." },
@@ -73,6 +73,9 @@ const authLimiter = rateLimit({
 
 // Logging — concise in prod, verbose in dev
 app.use(morgan(isProd ? "combined" : "dev"));
+
+// Disable etag for API responses so dynamic data isn't cached
+app.set("etag", false);
 
 // Body parsing
 app.use(express.json({ limit: "1mb" }));

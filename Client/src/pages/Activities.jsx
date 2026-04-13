@@ -9,6 +9,7 @@ import { RANGES, getDateRange } from "../utils/dateRanges";
 const TYPES = ["running", "walking", "cycling", "swimming", "weightlifting", "yoga", "hiking", "other"];
 const PAGE_SIZES = [10, 20, 50];
 const COLS = [
+  { key: "name", label: "Name" },
   { key: "type", label: "Type" },
   { key: "duration", label: "Duration" },
   { key: "caloriesBurned", label: "Calories" },
@@ -22,7 +23,7 @@ export default function Activities() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ type: "", duration: "", caloriesBurned: 0, distance: "", notes: "", date: new Date(), manualCalories: false });
+  const [form, setForm] = useState({ name: "", type: "", duration: "", caloriesBurned: 0, distance: "", reps: "", sets: "", steps: "", notes: "", date: new Date(), manualCalories: false });
   const [estimating, setEstimating] = useState(false);
 
   // Grid state
@@ -89,17 +90,21 @@ export default function Activities() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ type: "", duration: "", caloriesBurned: 0, distance: "", notes: "", date: new Date(), manualCalories: false });
+    setForm({ name: "", type: "", duration: "", caloriesBurned: 0, distance: "", reps: "", sets: "", steps: "", notes: "", date: new Date(), manualCalories: false });
     setShowForm(true);
   };
 
   const openEdit = (row) => {
     setEditing(row._id);
     setForm({
+      name: row.name ?? "",
       type: row.type,
       duration: row.duration,
       caloriesBurned: row.caloriesBurned,
       distance: row.distance ?? "",
+      reps: row.reps ?? "",
+      sets: row.sets ?? "",
+      steps: row.steps ?? "",
       notes: row.notes ?? "",
       date: row.date ? new Date(row.date) : new Date(),
       manualCalories: false,
@@ -112,6 +117,9 @@ export default function Activities() {
     const payload = { ...form, duration: Number(form.duration), caloriesBurned: Number(form.caloriesBurned) };
     if (payload.date instanceof Date) payload.date = payload.date.toISOString();
     if (form.distance) payload.distance = Number(form.distance);
+    if (form.reps) payload.reps = Number(form.reps); else payload.reps = null;
+    if (form.sets) payload.sets = Number(form.sets); else payload.sets = null;
+    if (form.steps) payload.steps = Number(form.steps); else payload.steps = null;
     if (editing) await activityApi.update(editing, payload);
     else await activityApi.create(payload);
     setShowForm(false);
@@ -183,11 +191,12 @@ export default function Activities() {
             <tbody className="divide-y">
               {rows.map((r) => (
                 <tr key={r._id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium">{r.name}</td>
                   <td className="px-4 py-3 capitalize">{r.type}</td>
                   <td className="px-4 py-3">{r.duration} min</td>
                   <td className="px-4 py-3">{r.caloriesBurned}</td>
                   <td className="px-4 py-3">{r.distance != null ? `${r.distance} mi` : "—"}</td>
-                  <td className="px-4 py-3">{new Date(r.date).toLocaleDateString()}</td>
+                  <td className="px-4 py-3">{new Date(r.date).toLocaleString()}</td>
                   <td className="px-4 py-3 text-right space-x-2">
                     <button onClick={() => openEdit(r)} className="text-indigo-600 hover:text-indigo-800"><Pencil size={15} /></button>
                     <button onClick={() => remove(r._id)} className="text-red-500 hover:text-red-700"><Trash2 size={15} /></button>
@@ -220,6 +229,10 @@ export default function Activities() {
             <button type="button" onClick={() => setShowForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
             <h2 className="text-lg font-semibold mb-4">{editing ? "Edit" : "New"} Activity</h2>
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="e.g. Morning Run, Bench Press" required maxLength={100} />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
                 <select value={form.type} onChange={(e) => onFieldChange("type", e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" required>
@@ -254,6 +267,24 @@ export default function Activities() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Distance (mi)</label>
                 <input type="number" value={form.distance} onChange={(e) => setForm({ ...form, distance: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" step="0.01" min={0} />
               </div>
+              {form.type === "weightlifting" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sets</label>
+                    <input type="number" value={form.sets} onChange={(e) => setForm({ ...form, sets: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" min={0} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Reps</label>
+                    <input type="number" value={form.reps} onChange={(e) => setForm({ ...form, reps: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" min={0} />
+                  </div>
+                </div>
+              )}
+              {form.type === "walking" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Steps</label>
+                  <input type="number" value={form.steps} onChange={(e) => setForm({ ...form, steps: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" min={0} />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                 <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" rows={3} />
@@ -263,8 +294,10 @@ export default function Activities() {
                 <DatePicker
                   selected={form.date instanceof Date ? form.date : form.date ? new Date(form.date) : null}
                   onChange={(d) => setForm({ ...form, date: d })}
-                  dateFormat="MMMM d, yyyy"
+                  showTimeSelect
+                  dateFormat="MMMM d, yyyy h:mm aa"
                   className="w-full border rounded-lg px-3 py-2 text-sm"
+                  withPortal
                 />
               </div>
             </div>

@@ -4,7 +4,7 @@ import { waterIntakeApi } from "../api";
 const columns = [
   { key: "amount", label: "Amount", render: (r) => `${r.amount} ${r.unit}` },
   { key: "notes", label: "Notes", render: (r) => r.notes || "—" },
-  { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleDateString() },
+  { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleString() },
 ];
 
 const formFields = [

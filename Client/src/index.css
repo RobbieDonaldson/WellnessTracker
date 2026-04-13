@@ -1,3 +1,22 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Datepicker: calendar + time panel side-by-side */
+.react-datepicker__month-container {
+  min-width: 220px;
+}
+.react-datepicker__time-container {
+  border-left: 1px solid #aeaeae;
+}
+/* Portal container renders above modals */
+#datepicker-portal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+#datepicker-portal > * {
+  pointer-events: auto;
+}

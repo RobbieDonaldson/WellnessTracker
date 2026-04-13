@@ -3,6 +3,12 @@ const mongoose = require("mongoose");
 const activitySchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    name: {
+      type: String,
+      required: [true, "Activity name is required"],
+      trim: true,
+      maxlength: [100, "Name must be 100 characters or less"],
+    },
     type: {
       type: String,
       required: [true, "Activity type is required"],
@@ -23,6 +29,21 @@ const activitySchema = new mongoose.Schema(
       type: Number,
       default: null,
       min: 0,
+    },
+    reps: {
+      type: Number,
+      default: null,
+      min: [0, "Reps cannot be negative"],
+    },
+    sets: {
+      type: Number,
+      default: null,
+      min: [0, "Sets cannot be negative"],
+    },
+    steps: {
+      type: Number,
+      default: null,
+      min: [0, "Steps cannot be negative"],
     },
     notes: {
       type: String,

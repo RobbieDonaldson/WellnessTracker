@@ -6,7 +6,7 @@ const columns = [
   { key: "wakeTime", label: "Wake", render: (r) => new Date(r.wakeTime).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) },
   { key: "duration", label: "Hours", render: (r) => r.duration != null ? `${r.duration} hrs` : "—" },
   { key: "quality", label: "Quality" },
-  { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleDateString() },
+  { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleString() },
 ];
 
 const formFields = [

@@ -13,7 +13,7 @@ const bpColumns = [
   { key: "systolic", label: "Systolic" },
   { key: "diastolic", label: "Diastolic" },
   { key: "pulse", label: "Pulse", render: (r) => r.pulse ?? "—" },
-  { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleDateString() },
+  { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleString() },
 ];
 const bpFields = [
   { name: "systolic", label: "Systolic (mmHg)", type: "number", required: true, min: 50, max: 300 },
@@ -26,7 +26,7 @@ const bpFields = [
 const bgColumns = [
   { key: "level", label: "Glucose (mg/dL)" },
   { key: "measurementType", label: "Measurement" },
-  { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleDateString() },
+  { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleString() },
 ];
 const bgFields = [
   { name: "level", label: "Glucose Level (mg/dL)", type: "number", required: true, min: 20, max: 600 },
@@ -38,7 +38,7 @@ const bgFields = [
 const hrColumns = [
   { key: "bpm", label: "BPM" },
   { key: "context", label: "Context" },
-  { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleDateString() },
+  { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleString() },
 ];
 const hrFields = [
   { name: "bpm", label: "Heart Rate (bpm)", type: "number", required: true, min: 20, max: 250 },
@@ -49,7 +49,7 @@ const hrFields = [
 
 const wtColumns = [
   { key: "value", label: "Weight", render: (r) => `${r.value} ${r.unit}` },
-  { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleDateString() },
+  { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleString() },
 ];
 const wtFields = [
   { name: "value", label: "Weight", type: "number", required: true, step: "0.1", min: 50, max: 800 },

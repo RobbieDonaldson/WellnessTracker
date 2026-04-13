@@ -10,7 +10,7 @@ const columns = [
   { key: "fat", label: "Fat (g)" },
   { key: "cholesterol", label: "Cholesterol (mg)" },
   { key: "sodium", label: "Sodium (mg)" },
-  { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleDateString() },
+  { key: "date", label: "Date", render: (r) => new Date(r.date).toLocaleString() },
 ];
 
 const formFields = [

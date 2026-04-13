@@ -12,7 +12,7 @@ const goalSchema = new mongoose.Schema(
     category: {
       type: String,
       required: [true, "Category is required"],
-      enum: ["activity", "nutrition", "sleep", "weight", "hydration", "other"],
+      enum: ["activity", "nutrition", "sleep", "weight", "hydration", "blood_pressure", "blood_glucose", "heart_rate", "journal", "other"],
     },
     targetValue: {
       type: Number,
