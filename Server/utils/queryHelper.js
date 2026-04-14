@@ -15,24 +15,31 @@
  * @param {string} dateField     - model field used for date range filter (default "date")
  * @returns {{ filter, sort, skip, limit, page, pageSize }}
  */
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function parseQuery(query, searchFields = [], defaultSort = "-date", dateField = "date") {
   const page = Math.max(parseInt(query.page) || 1, 1);
   const limit = Math.min(Math.max(parseInt(query.limit) || 20, 1), 100);
   const skip = (page - 1) * limit;
 
-  // Sort
+  // Sort — only allow alphanumeric, underscore, dot (no $ or nested operator injection)
   let sortStr = query.sort || defaultSort;
+  const sortField = sortStr.startsWith("-") ? sortStr.slice(1) : sortStr;
   const sortObj = {};
-  if (sortStr.startsWith("-")) {
-    sortObj[sortStr.slice(1)] = -1;
+  if (/^[a-zA-Z0-9_.]+$/.test(sortField)) {
+    sortObj[sortField] = sortStr.startsWith("-") ? -1 : 1;
   } else {
-    sortObj[sortStr] = 1;
+    // Invalid sort field — fall back to default
+    const defField = defaultSort.startsWith("-") ? defaultSort.slice(1) : defaultSort;
+    sortObj[defField] = defaultSort.startsWith("-") ? -1 : 1;
   }
 
   // Search filter
   let filter = {};
   if (query.search && query.search.trim() && searchFields.length) {
-    const regex = new RegExp(query.search.trim(), "i");
+    const regex = new RegExp(escapeRegex(query.search.trim()), "i");
     filter.$or = searchFields.map((f) => ({ [f]: regex }));
   }
 

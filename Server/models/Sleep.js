@@ -36,6 +36,9 @@ const sleepSchema = new mongoose.Schema(
 // Calculate duration in hours before saving
 sleepSchema.pre("save", function (next) {
   if (this.bedtime && this.wakeTime) {
+    if (this.wakeTime <= this.bedtime) {
+      return next(new Error("Wake time must be after bedtime."));
+    }
     const ms = this.wakeTime.getTime() - this.bedtime.getTime();
     this.duration = Math.round((ms / (1000 * 60 * 60)) * 100) / 100;
   }

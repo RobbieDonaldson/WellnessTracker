@@ -40,11 +40,12 @@ cd Server
 npm install --production
 
 # Configure environment
-cp .env.example .env
 nano .env
 ```
 
-Set these values in `.env`:
+### 3. Configure environment
+
+Create `Server/.env` with the following values:
 
 ```env
 NODE_ENV=production
@@ -52,9 +53,26 @@ PORT=5000
 MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/WellnessTracker
 JWT_SECRET=a-long-random-secret-string-here
 CLIENT_ORIGIN=https://your-domain.com
+API_RATE_LIMIT=500
+AUTH_RATE_LIMIT=50
 ```
 
-### 3. Build the frontend
+> **CRITICAL:** `JWT_SECRET` is **required** in production. The server will refuse to start without it. Generate a strong random value:
+> ```bash
+> node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+> ```
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `NODE_ENV` | Yes | — | Must be `production` for deployed environments |
+| `PORT` | No | `5000` | Server port |
+| `MONGO_URI` | Yes | — | MongoDB connection string |
+| `JWT_SECRET` | **Yes (prod)** | dev fallback | Secret for signing JWTs. App crashes if missing in production |
+| `CLIENT_ORIGIN` | Yes | `http://localhost:3000` | Allowed CORS origins (comma-separated for multiple) |
+| `API_RATE_LIMIT` | No | `500` | Max API requests per 15-minute window |
+| `AUTH_RATE_LIMIT` | No | `50` | Max login/register requests per 15-minute window |
+
+### 4. Build the frontend
 
 ```bash
 cd ../Client
@@ -62,7 +80,7 @@ npm install
 npm run build    # outputs to Server/public/
 ```
 
-### 4. Start with PM2
+### 5. Start with PM2
 
 ```bash
 cd ../deploy
@@ -71,7 +89,7 @@ pm2 save
 pm2 startup    # follow the printed command to enable auto-start on boot
 ```
 
-### 5. Enable SSL
+### 6. Enable SSL
 
 ```bash
 sudo certbot --nginx -d your-domain.com -d www.your-domain.com
@@ -88,6 +106,29 @@ cd Client && npm install && npm run build
 cd ../Server && npm install --production
 pm2 reload wellness-tracker
 ```
+
+## Security Notes
+
+The server includes several built-in security layers. No additional configuration is needed beyond setting the env vars above:
+
+- **JWT tokens** expire after 7 days; `JWT_SECRET` is enforced in production
+- **Rate limiting** is applied at three tiers:
+  - `apiLimiter` — 500 req/15min for general API calls
+  - `authLimiter` — 50 req/15min for login and registration
+  - `mfaLimiter` — 10 req/15min for MFA OTP send and verify (prevents brute-force of 6-digit codes)
+- **Search input** is regex-escaped server-side to prevent ReDoS
+- **Sort fields** are validated against an alphanumeric whitelist
+- **Avatar uploads** are validated by both file extension and MIME type (jpg, png, gif, webp only; 2 MB max)
+- **MFA OTP comparison** uses `crypto.timingSafeEqual` to prevent timing attacks
+- **MFA send-otp** returns a generic success response to prevent user ID enumeration
+- **Helmet** sets secure HTTP headers; **CORS** restricts to `CLIENT_ORIGIN`
+
+### MFA in Production
+
+The server currently logs email/SMS OTPs to the console (suitable for development). For production, integrate a real provider in `mfaController.js`:
+- **Email**: SendGrid, AWS SES, Resend, etc.
+- **SMS**: Twilio, Vonage, etc.
+- TOTP (Google Authenticator) works out of the box with no external provider needed.
 
 ## Useful Commands
 

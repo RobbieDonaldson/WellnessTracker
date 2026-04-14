@@ -30,6 +30,11 @@ const activitySchema = new mongoose.Schema(
       default: null,
       min: 0,
     },
+    distanceUnit: {
+      type: String,
+      enum: ["mi", "km"],
+      default: "mi",
+    },
     reps: {
       type: Number,
       default: null,
@@ -39,6 +44,11 @@ const activitySchema = new mongoose.Schema(
       type: Number,
       default: null,
       min: [0, "Sets cannot be negative"],
+    },
+    weight: {
+      type: Number,
+      default: null,
+      min: [0, "Weight cannot be negative"],
     },
     steps: {
       type: Number,

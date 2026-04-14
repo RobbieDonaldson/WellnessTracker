@@ -19,13 +19,13 @@ import {
 
 const links = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/goals", label: "Goals", icon: Target },
+  { to: "/journal", label: "Journal", icon: BookHeart },
+  { to: "/vitals", label: "Vitals", icon: HeartPulse },
   { to: "/activities", label: "Activities", icon: Dumbbell },
   { to: "/meals", label: "Meals", icon: UtensilsCrossed },
-  { to: "/sleep", label: "Sleep", icon: Moon },
-  { to: "/goals", label: "Goals", icon: Target },
-  { to: "/vitals", label: "Vitals", icon: HeartPulse },
   { to: "/water", label: "Water Intake", icon: Droplets },
-  { to: "/journal", label: "Journal", icon: BookHeart },
+  { to: "/sleep", label: "Sleep", icon: Moon },
 ];
 
 export default function Layout({ children }) {

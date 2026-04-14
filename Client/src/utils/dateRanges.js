@@ -28,6 +28,43 @@ export const RANGES = [
   { key: "all", label: "All Time" },
 ];
 
+/**
+ * Returns { label, daysInPeriod } for a given range key and optional rows array.
+ * Consolidates the duplicated period-calculation logic used across pages.
+ */
+export function getPeriodInfo(range, rows = []) {
+  let label = "Today";
+  let daysInPeriod = 1;
+
+  if (range === "week") {
+    label = "This Week";
+    const dayOfWeek = new Date().getDay(); // 0 = Sunday
+    daysInPeriod = dayOfWeek + 1;
+  } else if (range === "lastWeek") {
+    label = "Last Week";
+    daysInPeriod = 7;
+  } else if (range === "month") {
+    label = "This Month";
+    const now = new Date();
+    daysInPeriod = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  } else if (range === "year") {
+    label = "This Year";
+    const now = new Date();
+    const year = now.getFullYear();
+    daysInPeriod = ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) ? 366 : 365;
+  } else if (range === "all") {
+    label = "All Time";
+    if (rows.length > 0) {
+      const dates = rows.map((r) => new Date(r.date).getTime());
+      const minDate = Math.min(...dates);
+      const maxDate = Math.max(...dates);
+      daysInPeriod = Math.max(1, Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)));
+    }
+  }
+
+  return { label, daysInPeriod };
+}
+
 export function getDateRange(key) {
   const now = new Date();
 

@@ -68,7 +68,8 @@ exports.sendOtp = async (req, res, next) => {
     if (!userId) return res.status(400).json({ error: "userId required." });
 
     const user = await User.findById(userId);
-    if (!user || !user.mfaEnabled) return res.status(400).json({ error: "MFA not configured." });
+    // Always return generic success to prevent user ID enumeration
+    if (!user || !user.mfaEnabled) return res.json({ message: "Code sent.", method: "unknown" });
 
     const otp = generateOtp();
     user.pendingOtp = otp;
@@ -99,8 +100,11 @@ exports.verifyLogin = async (req, res, next) => {
     if (user.mfaMethod === "totp") {
       valid = speakeasy.totp.verify({ secret: user.totpSecret, encoding: "base32", token, window: 1 });
     } else {
-      // email or sms OTP
-      valid = user.pendingOtp === token && user.pendingOtpExpires > new Date();
+      // email or sms OTP — use timing-safe comparison to prevent timing attacks
+      const otpValid = user.pendingOtp && token &&
+        user.pendingOtp.length === token.length &&
+        crypto.timingSafeEqual(Buffer.from(user.pendingOtp), Buffer.from(token));
+      valid = otpValid && user.pendingOtpExpires > new Date();
       if (valid) {
         user.pendingOtp = "";
         user.pendingOtpExpires = null;

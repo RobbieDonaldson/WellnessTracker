@@ -4,7 +4,7 @@ import { authApi } from "../api";
 import { Settings, Lock, ShieldCheck, Smartphone, Mail, Key } from "lucide-react";
 
 export default function Account() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
 
   // Password change
   const [pw, setPw] = useState({ currentPassword: "", newPassword: "", confirm: "" });
@@ -18,6 +18,11 @@ export default function Account() {
   const [mfaMsg, setMfaMsg] = useState("");
   const [mfaLoading, setMfaLoading] = useState(false);
 
+  // Unit preference state
+  const [unitPreference, setUnitPreference] = useState("standard");
+  const [unitMsg, setUnitMsg] = useState("");
+  const [unitSaving, setUnitSaving] = useState(false);
+
   // TOTP setup
   const [totpSetup, setTotpSetup] = useState(null); // { qrCode, secret }
   const [totpToken, setTotpToken] = useState("");
@@ -27,6 +32,7 @@ export default function Account() {
       setMfaEnabled(r.data.mfaEnabled || false);
       setMfaMethod(r.data.mfaMethod || "");
       setPhone(r.data.phone || "");
+      setUnitPreference(r.data.unitPreference || "standard");
     }).catch(() => {});
   }, []);
 
@@ -44,6 +50,21 @@ export default function Account() {
       setPwMsg(err.response?.data?.error || "Failed to change password.");
     }
     setPwSaving(false);
+  };
+
+  // --- Unit Preference ---
+  const handleUnitSubmit = async (e) => {
+    e.preventDefault();
+    setUnitMsg("");
+    setUnitSaving(true);
+    try {
+      const { data } = await authApi.updateProfile({ unitPreference });
+      updateUser({ ...user, unitPreference });
+      setUnitMsg("Unit preference updated successfully.");
+    } catch (err) {
+      setUnitMsg(err.response?.data?.error || "Failed to update unit preference.");
+    }
+    setUnitSaving(false);
   };
 
   // --- MFA: Enable TOTP ---
@@ -116,6 +137,31 @@ export default function Account() {
       </h1>
 
       <div className="max-w-2xl space-y-8">
+        {/* Unit Preference */}
+        <div className="bg-white rounded-xl shadow-sm border p-6">
+          <h2 className="text-lg font-semibold flex items-center gap-2 mb-4"><Settings size={20} /> Unit Preference</h2>
+          {unitMsg && (
+            <div className={`text-sm rounded-lg px-4 py-3 mb-4 ${unitMsg.includes("success") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+              {unitMsg}
+            </div>
+          )}
+          <form onSubmit={handleUnitSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Units</label>
+              <select value={unitPreference} onChange={(e) => setUnitPreference(e.target.value)} className="w-full border rounded-lg px-3 py-2.5 text-sm">
+                <option value="standard">Standard (lbs, ft, oz)</option>
+                <option value="metric">Metric (kg, m, ml)</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">This will affect how units are displayed across the application.</p>
+            </div>
+            <div className="flex justify-end">
+              <button type="submit" disabled={unitSaving} className="bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50">
+                {unitSaving ? "Saving..." : "Save Preference"}
+              </button>
+            </div>
+          </form>
+        </div>
+
         {/* Change Password */}
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <h2 className="text-lg font-semibold flex items-center gap-2 mb-4"><Lock size={20} /> Change Password</h2>

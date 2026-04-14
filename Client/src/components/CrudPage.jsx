@@ -6,13 +6,15 @@ import { RANGES, getDateRange } from "../utils/dateRanges";
 
 const PAGE_SIZES = [10, 20, 50];
 
-export default function CrudPage({ title, api, columns, formFields, renderExtra, defaultRange = "week" }) {
+export default function CrudPage({ title, api, columns, formFields, renderExtra, defaultRange = "week", range: externalRange, onRangeChange, hideAdd = false, hideDelete = false, hideRange = false, transformRow, transformSave }) {
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState({ page: 1, pageSize: 20, totalPages: 1, totalCount: 0 });
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false); // Track if we've attempted to load
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({});
+  const [error, setError] = useState("");
 
   // Grid state
   const [search, setSearch] = useState("");
@@ -20,7 +22,18 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra,
   const [sortDir, setSortDir] = useState("desc");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [range, setRange] = useState(defaultRange);
+  const [internalRange, setInternalRange] = useState(defaultRange);
+
+  // Use external range if provided, otherwise use internal state
+  const range = externalRange !== undefined ? externalRange : internalRange;
+  const handleRangeChange = (newRange) => {
+    if (onRangeChange) {
+      onRangeChange(newRange);
+    } else {
+      setInternalRange(newRange);
+    }
+    setPage(1);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -32,12 +45,15 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra,
       if (dr.fromDate) params.fromDate = dr.fromDate;
       if (dr.toDate) params.toDate = dr.toDate;
       const r = await api.getAll(params);
-      setRows(r.data.data);
-      setMeta(r.data.meta);
+      setRows(r.data.data || []);
+      setMeta(r.data.meta || { page, pageSize, totalPages: 0, totalCount: 0 });
     } catch (e) {
       console.error(e);
+      setRows([]);
+      setMeta({ page, pageSize, totalPages: 0, totalCount: 0 });
     }
     setLoading(false);
+    setHasLoaded(true);
   }, [page, pageSize, search, sortField, sortDir, range, api]);
 
   useEffect(() => { load(); }, [load]);
@@ -76,8 +92,9 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra,
   const openEdit = (row) => {
     setEditing(row._id);
     const vals = {};
+    const transformedRow = transformRow ? transformRow(row) : row;
     formFields.forEach((f) => {
-      let v = row[f.name];
+      let v = transformedRow[f.name];
       if (f.type === "date" || f.type === "datetime-local") {
         v = v ? new Date(v) : null;
       }
@@ -89,22 +106,34 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra,
 
   const save = async (e) => {
     e.preventDefault();
-    const payload = { ...form };
-    formFields.forEach((f) => {
-      if ((f.type === "date" || f.type === "datetime-local") && payload[f.name] instanceof Date) {
-        payload[f.name] = payload[f.name].toISOString();
-      }
-    });
-    if (editing) await api.update(editing, payload);
-    else await api.create(payload);
-    setShowForm(false);
-    load();
+    setError("");
+    try {
+      const payload = { ...form };
+      formFields.forEach((f) => {
+        if ((f.type === "date" || f.type === "datetime-local") && payload[f.name] instanceof Date) {
+          payload[f.name] = payload[f.name].toISOString();
+        }
+      });
+      // Apply transformSave if provided
+      const finalPayload = transformSave ? transformSave(payload, editing) : payload;
+      if (editing) await api.update(editing, finalPayload);
+      else await api.create(finalPayload);
+      setShowForm(false);
+      load();
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || "Failed to save record.");
+    }
   };
 
   const remove = async (id) => {
     if (!confirm("Delete this record?")) return;
-    await api.remove(id);
-    load();
+    setError("");
+    try {
+      await api.remove(id);
+      load();
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || "Failed to delete record.");
+    }
   };
 
   const SortIcon = ({ col }) => {
@@ -116,29 +145,36 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra,
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">{title}</h1>
-        <button onClick={openNew} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium">
-          <Plus size={16} /> Add
-        </button>
+        {title && <h1 className="text-2xl font-bold">{title}</h1>}
+        {!title && <div />}
       </div>
 
-      {/* Date Range Pills */}
-      <div className="flex items-center gap-1 mb-4 bg-gray-100 rounded-lg p-1 w-fit">
-        <Calendar size={14} className="text-gray-400 ml-2 mr-1" />
-        {RANGES.map((r) => (
-          <button
-            key={r.key}
-            onClick={() => { setRange(r.key); setPage(1); }}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
-              range === r.key ? "bg-white shadow text-indigo-700" : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            {r.label}
-          </button>
-        ))}
-      </div>
+      {/* Date Range Pills - only show if no external range provided */}
+      {!hideRange && externalRange === undefined && (
+        <div className="flex items-center gap-1 mb-4 bg-gray-100 rounded-lg p-1 w-fit">
+          {RANGES.map((r) => (
+            <button
+              key={r.key}
+              onClick={() => handleRangeChange(r.key)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
+                range === r.key ? "bg-white shadow text-indigo-700" : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* Search + Page Size */}
+      {/* Error banner */}
+      {error && (
+        <div className="bg-red-50 text-red-600 text-sm rounded-lg px-4 py-3 mb-4 flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError("")} className="text-red-400 hover:text-red-600 ml-4"><X size={16} /></button>
+        </div>
+      )}
+
+      {/* Search */}
       <div className="flex items-center justify-between mb-4 gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -150,12 +186,11 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra,
             className="w-full border rounded-lg pl-9 pr-3 py-2 text-sm"
           />
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <span>Rows:</span>
-          <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="border rounded-lg px-2 py-1.5 text-sm">
-            {PAGE_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
+        {!hideAdd && (
+          <button onClick={openNew} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium">
+            <Plus size={16} /> New Entry
+          </button>
+        )}
       </div>
 
       {renderExtra && renderExtra(rows)}
@@ -193,7 +228,9 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra,
                   ))}
                   <td className="px-4 py-3 text-right space-x-2">
                     <button onClick={() => openEdit(row)} className="text-indigo-600 hover:text-indigo-800"><Pencil size={15} /></button>
-                    <button onClick={() => remove(row._id)} className="text-red-500 hover:text-red-700"><Trash2 size={15} /></button>
+                    {!hideDelete && (
+                      <button onClick={() => remove(row._id)} className="text-red-500 hover:text-red-700"><Trash2 size={15} /></button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -208,12 +245,20 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra,
           <span>
             Showing {(meta.page - 1) * meta.pageSize + 1}–{Math.min(meta.page * meta.pageSize, meta.totalCount)} of {meta.totalCount}
           </span>
-          <div className="flex items-center gap-1">
-            <PgBtn disabled={page === 1} onClick={() => setPage(1)}><ChevronsLeft size={16} /></PgBtn>
-            <PgBtn disabled={page === 1} onClick={() => setPage(page - 1)}><ChevronLeft size={16} /></PgBtn>
-            <span className="px-3 py-1 text-sm font-medium">Page {meta.page} of {meta.totalPages}</span>
-            <PgBtn disabled={page === meta.totalPages} onClick={() => setPage(page + 1)}><ChevronRight size={16} /></PgBtn>
-            <PgBtn disabled={page === meta.totalPages} onClick={() => setPage(meta.totalPages)}><ChevronsRight size={16} /></PgBtn>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span>Rows:</span>
+              <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="border rounded-lg px-2 py-1.5 text-sm">
+                {PAGE_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-1">
+              <PgBtn disabled={page === 1} onClick={() => setPage(1)}><ChevronsLeft size={16} /></PgBtn>
+              <PgBtn disabled={page === 1} onClick={() => setPage(page - 1)}><ChevronLeft size={16} /></PgBtn>
+              <span className="px-3 py-1 text-sm font-medium">Page {meta.page} of {meta.totalPages}</span>
+              <PgBtn disabled={page === meta.totalPages} onClick={() => setPage(page + 1)}><ChevronRight size={16} /></PgBtn>
+              <PgBtn disabled={page === meta.totalPages} onClick={() => setPage(meta.totalPages)}><ChevronsRight size={16} /></PgBtn>
+            </div>
           </div>
         </div>
       )}
@@ -224,6 +269,9 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra,
           <form onSubmit={save} className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 relative max-h-[90vh] overflow-auto">
             <button type="button" onClick={() => setShowForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
             <h2 className="text-lg font-semibold mb-4">{editing ? "Edit" : "New"} {title.replace(/s$/, "")}</h2>
+            {error && (
+              <div className="bg-red-50 text-red-600 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>
+            )}
             <div className="space-y-4">
               {formFields.map((f) => (
                 <div key={f.name}>

@@ -70,6 +70,13 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many auth attempts, please try again later." },
 });
+const mfaLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many MFA attempts, please try again later." },
+});
 
 // Logging — concise in prod, verbose in dev
 app.use(morgan(isProd ? "combined" : "dev"));
@@ -98,6 +105,8 @@ app.get("/api/health", (_req, res) => {
 // Auth routes — stricter limit on login/register, normal limit on profile/wizard
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
+app.use("/api/auth/mfa/send-otp", mfaLimiter);
+app.use("/api/auth/mfa/verify", mfaLimiter);
 app.use("/api/auth", apiLimiter, authRoutes);
 
 // Protected routes (standard rate limit)

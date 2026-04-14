@@ -4,10 +4,23 @@ import "react-datepicker/dist/react-datepicker.css";
 import {
   Plus, Pencil, Trash2, X, Search, ChevronUp, ChevronDown,
   ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight,
-  Calendar, BookHeart, RefreshCw,
+  Calendar, BookHeart, RefreshCw, CheckCircle2, TrendingUp,
 } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { journalApi } from "../api";
-import { RANGES, getDateRange } from "../utils/dateRanges";
+import { RANGES, getDateRange, getPeriodInfo } from "../utils/dateRanges";
+
+const moodScoreMap = {
+  Happy: 9, Grateful: 9, Peaceful: 8, Hopeful: 8, Joyful: 10, Content: 8,
+  Anxious: 3, Sad: 2, Angry: 2, Lonely: 3, Fearful: 3, Overwhelmed: 2,
+  Confused: 4, Frustrated: 3, Guilty: 2, Ashamed: 1, Jealous: 3, Grief: 1,
+  Stressed: 3, Tired: 4, Discouraged: 3, Worried: 3, Depressed: 1, Restless: 4,
+};
+
+// Format date for chart display
+function fmt(dateStr) {
+  return new Date(dateStr).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
 
 const MOODS = [
   "Happy", "Grateful", "Peaceful", "Hopeful", "Joyful", "Content",
@@ -54,6 +67,12 @@ export default function Journal() {
   const [pageSize, setPageSize] = useState(20);
   const [range, setRange] = useState("month");
 
+  // Summary state
+  const [chartCollapsed, setChartCollapsed] = useState(true);
+  const [periodLabel, setPeriodLabel] = useState("This Month");
+  const [todayMood, setTodayMood] = useState(null);
+  const [periodAvgMood, setPeriodAvgMood] = useState(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     const params = { page, limit: pageSize };
@@ -71,6 +90,40 @@ export default function Journal() {
   }, [page, pageSize, search, sortField, sortDir, range]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Calculate today's mood
+  useEffect(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString();
+    
+    const todayEntry = rows.find(r => {
+      const d = new Date(r.date);
+      d.setHours(0, 0, 0, 0);
+      return d.toISOString() === todayStr;
+    });
+    setTodayMood(todayEntry || null);
+  }, [rows]);
+
+  // Calculate period average and label
+  useEffect(() => {
+    const { label, daysInPeriod } = getPeriodInfo(range, rows);
+    setPeriodLabel(label);
+
+    if (rows.length > 0) {
+      const moodScores = rows.map((r) => moodScoreMap[r.mood] || 5);
+      const avgMood = (moodScores.reduce((s, v) => s + v, 0) / moodScores.length).toFixed(1);
+      setPeriodAvgMood(avgMood);
+    } else {
+      setPeriodAvgMood(null);
+    }
+  }, [rows, range]);
+
+  // Calculate chart data
+  const chartData = rows.map((r) => ({
+    date: fmt(r.date),
+    mood: moodScoreMap[r.mood] || 5,
+  })).reverse();
 
   useEffect(() => {
     const t = setTimeout(() => { setSearch(searchInput); setPage(1); }, 350);
@@ -145,16 +198,10 @@ export default function Journal() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold flex items-center gap-2"> Journal</h1>
-        <button onClick={openNew} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium">
-          <Plus size={16} /> New Entry
-        </button>
-      </div>
+      <h1 className="text-2xl font-bold mb-4">Journal</h1>
 
       {/* Date Range Pills */}
       <div className="flex items-center gap-1 mb-4 bg-gray-100 rounded-lg p-1 w-fit">
-        <Calendar size={14} className="text-gray-400 ml-2 mr-1" />
         {RANGES.map((r) => (
           <button
             key={r.key}
@@ -166,21 +213,106 @@ export default function Journal() {
         ))}
       </div>
 
-      {/* Search + Page Size */}
+      {/* Today's Mood Summary Card */}
+      <div className="bg-white rounded-xl shadow-sm border p-4 mb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`p-3 rounded-lg ${todayMood && moodScoreMap[todayMood.mood] >= 7 ? "bg-green-100" : "bg-indigo-100"}`}>
+              {todayMood && moodScoreMap[todayMood.mood] >= 7 ? (
+                <CheckCircle2 size={24} className="text-green-600" />
+              ) : (
+                <TrendingUp size={24} className="text-indigo-600" />
+              )}
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Today's Mood</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {todayMood ? todayMood.mood : "No entry yet"}
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-gray-500">Score</p>
+            <p className={`text-lg font-semibold ${todayMood && moodScoreMap[todayMood.mood] >= 7 ? "text-green-600" : "text-indigo-600"}`}>
+              {todayMood ? moodScoreMap[todayMood.mood] : "—"} <span className="text-sm font-normal text-gray-400">/ 10</span>
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
+          <div
+            className={`h-2 rounded-full transition-all ${todayMood && moodScoreMap[todayMood.mood] >= 7 ? "bg-green-500" : "bg-indigo-500"}`}
+            style={{ width: `${todayMood ? (moodScoreMap[todayMood.mood] / 10) * 100 : 0}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Collapsible Period Progress */}
+      {chartData.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border mb-4">
+          <button
+            onClick={() => setChartCollapsed(!chartCollapsed)}
+            className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition"
+          >
+            <h2 className="text-lg font-semibold">{periodLabel}'s Progress</h2>
+            <span className="text-gray-400">
+              {chartCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+            </span>
+          </button>
+          {!chartCollapsed && (
+            <div className="px-6 pb-6 space-y-4">
+              {/* Period Summary Card */}
+              {periodAvgMood !== null && (
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-3 rounded-lg ${periodAvgMood >= 7 ? "bg-green-100" : "bg-indigo-100"}`}>
+                        {periodAvgMood >= 7 ? (
+                          <CheckCircle2 size={24} className="text-green-600" />
+                        ) : (
+                          <TrendingUp size={24} className="text-indigo-600" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">{periodLabel}'s Average Mood</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {periodAvgMood} <span className="text-sm font-normal text-gray-400">/ 10</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Chart */}
+              <div>
+                <h3 className="text-sm text-gray-500 mb-4">{periodLabel} Mood Trend Chart</h3>
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                      <YAxis domain={[0, 10]} />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="mood" stroke="#eab308" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4 gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input type="text" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder="Search mood, title, content..." className="w-full border rounded-lg pl-9 pr-3 py-2 text-sm" />
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <span>Rows:</span>
-          <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="border rounded-lg px-2 py-1.5 text-sm">
-            {PAGE_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
+        <button onClick={openNew} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium">
+          <Plus size={16} /> New Entry
+        </button>
       </div>
 
-      {/* Table */}
       {loading ? (
         <p className="text-gray-400 py-10 text-center">Loading...</p>
       ) : rows.length === 0 ? (
@@ -223,12 +355,20 @@ export default function Journal() {
       {meta.totalCount > 0 && (
         <div className="flex items-center justify-between mt-4 text-sm text-gray-500">
           <span>Showing {(meta.page - 1) * meta.pageSize + 1}–{Math.min(meta.page * meta.pageSize, meta.totalCount)} of {meta.totalCount}</span>
-          <div className="flex items-center gap-1">
-            <PgBtn disabled={page === 1} onClick={() => setPage(1)}><ChevronsLeft size={16} /></PgBtn>
-            <PgBtn disabled={page === 1} onClick={() => setPage(page - 1)}><ChevronLeft size={16} /></PgBtn>
-            <span className="px-3 py-1 text-sm font-medium">Page {meta.page} of {meta.totalPages}</span>
-            <PgBtn disabled={page === meta.totalPages} onClick={() => setPage(page + 1)}><ChevronRight size={16} /></PgBtn>
-            <PgBtn disabled={page === meta.totalPages} onClick={() => setPage(meta.totalPages)}><ChevronsRight size={16} /></PgBtn>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span>Rows:</span>
+              <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="border rounded-lg px-2 py-1.5 text-sm">
+                {PAGE_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-1">
+              <PgBtn disabled={page === 1} onClick={() => setPage(1)}><ChevronsLeft size={16} /></PgBtn>
+              <PgBtn disabled={page === 1} onClick={() => setPage(page - 1)}><ChevronLeft size={16} /></PgBtn>
+              <span className="px-3 py-1 text-sm font-medium">Page {meta.page} of {meta.totalPages}</span>
+              <PgBtn disabled={page === meta.totalPages} onClick={() => setPage(page + 1)}><ChevronRight size={16} /></PgBtn>
+              <PgBtn disabled={page === meta.totalPages} onClick={() => setPage(meta.totalPages)}><ChevronsRight size={16} /></PgBtn>
+            </div>
           </div>
         </div>
       )}

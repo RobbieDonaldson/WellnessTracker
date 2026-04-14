@@ -38,6 +38,11 @@ const userSchema = new mongoose.Schema(
       enum: ["lbs", "kg"],
       default: "lbs",
     },
+    unitPreference: {
+      type: String,
+      enum: ["metric", "standard"],
+      default: "standard",
+    },
     address: {
       street: { type: String, trim: true, maxlength: 200 },
       city: { type: String, trim: true, maxlength: 100 },

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { getWeightUnit } from "../utils/unitConversion";
 
 export default function Register() {
   const { register } = useAuth();
@@ -8,6 +9,7 @@ export default function Register() {
   const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "", age: "", weight: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const unitPreference = "standard"; // Default to standard for registration
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -69,7 +71,7 @@ export default function Register() {
               <input type="number" value={form.age} onChange={set("age")} className="w-full border rounded-lg px-3 py-2.5 text-sm" min={1} max={150} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Weight (lbs) <span className="text-gray-400 font-normal">(optional)</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Weight ({getWeightUnit(unitPreference)}) <span className="text-gray-400 font-normal">(optional)</span></label>
               <input type="number" value={form.weight} onChange={set("weight")} className="w-full border rounded-lg px-3 py-2.5 text-sm" min={50} max={800} />
             </div>
           </div>

@@ -5,6 +5,9 @@ import {
 } from "recharts";
 import { goalApi, bloodPressureApi, bloodGlucoseApi, heartRateApi, weightApi, activityApi, waterIntakeApi, mealApi, journalApi } from "../api";
 import { HeartPulse, Droplets, Activity, Weight, GlassWater, Utensils, Smile, Frown, Dumbbell } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { convertWeight, convertVolume } from "../utils/unitConversion";
+import { getDateRange } from "../utils/dateRanges";
 
 const COLORS = ["#6366f1", "#06b6d4", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6"];
 
@@ -20,6 +23,8 @@ function fmt(dateStr) {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const unitPreference = user?.unitPreference || "standard";
   const [goals, setGoals] = useState([]);
   const [bp, setBp] = useState([]);
   const [bg, setBg] = useState([]);
@@ -32,29 +37,34 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const all = { limit: 100 };
+    const dr = getDateRange("week");
+    const params = { limit: 100 };
+    if (dr.fromDate) params.fromDate = dr.fromDate;
+    if (dr.toDate) params.toDate = dr.toDate;
     Promise.all([
-      goalApi.getAll(all),
-      bloodPressureApi.getAll(all),
-      bloodGlucoseApi.getAll(all),
-      heartRateApi.getAll(all),
-      weightApi.getAll(all),
-      activityApi.getAll(all),
-      waterIntakeApi.getAll(all),
-      mealApi.getAll(all),
-      journalApi.getAll(all),
-    ]).then(([g, b, bg, h, w, a, wi, m, j]) => {
-      setGoals(g.data.data);
-      setBp(b.data.data.slice().reverse());
-      setBg(bg.data.data.slice().reverse());
-      setHr(h.data.data.slice().reverse());
-      setWt(w.data.data.slice().reverse());
-      setActivities(a.data.data.slice().reverse());
-      setWater(wi.data.data.slice().reverse());
-      setMeals(m.data.data.slice().reverse());
-      setJournal(j.data.data.slice().reverse());
+      goalApi.getAll({ limit: 100 }),
+      bloodPressureApi.getAll(params),
+      bloodGlucoseApi.getAll(params),
+      heartRateApi.getAll(params),
+      weightApi.getAll(params),
+      activityApi.getAll(params),
+      waterIntakeApi.getAll(params),
+      mealApi.getAll(params),
+      journalApi.getAll(params),
+    ])
+    .then(([g, b, bg, h, w, a, wi, m, j]) => {
+      setGoals(g.data.data || []);
+      setBp(b.data.data || []);
+      setBg(bg.data.data || []);
+      setHr(h.data.data || []);
+      setWt(w.data.data || []);
+      setActivities(a.data.data || []);
+      setWater(wi.data.data || []);
+      setMeals(m.data.data || []);
+      setJournal(j.data.data || []);
       setLoading(false);
-    });
+    })
+    .catch(() => setLoading(false));
   }, []);
 
   if (loading) return <p className="text-center py-20 text-gray-400">Loading dashboard...</p>;
@@ -66,8 +76,41 @@ export default function Dashboard() {
   const actData = activities.map((r) => ({ date: fmt(r.date), calories: r.caloriesBurned, duration: r.duration }));
   const moodData = journal.map((r) => ({ date: fmt(r.date), mood: moodScoreMap[r.mood] || 5 }));
   const waterData = water.map((r) => ({ date: fmt(r.date), amount: r.amount }));
-  const avgWater = water.length ? Math.round(water.reduce((s, r) => s + r.amount, 0) / water.length) : "—";
+  
+  // Convert water to user's preference
+  const avgWater = water.length ? Math.round(water.reduce((s, r) => {
+    const converted = r.unit === "oz" ? r.amount : convertVolume(r.amount, "ml", "oz");
+    return s + converted;
+  }, 0) / water.length) : "—";
+  
   const avgExerciseMinutes = activities.length ? Math.round(activities.reduce((s, r) => s + (r.duration || 0), 0) / activities.length) : "—";
+  
+  // Get display units
+  const weightUnit = unitPreference === "metric" ? "kg" : "lbs";
+  const waterUnit = unitPreference === "metric" ? "ml/day" : "oz/day";
+  
+  // Convert weight display
+  const displayWeight = wt.length ? 
+    (() => {
+      const lastWt = wt[wt.length - 1];
+      if (unitPreference === "metric") {
+        if (lastWt.unit === "lbs") return convertWeight(lastWt.value, "lbs", "kg").toFixed(1);
+        return lastWt.value;
+      } else {
+        if (lastWt.unit === "kg") return convertWeight(lastWt.value, "kg", "lbs").toFixed(1);
+        return lastWt.value;
+      }
+    })() : "—";
+  
+  // Convert water display (avgWater is already in oz)
+  const displayWater = avgWater !== "—" ? 
+    (() => {
+      if (unitPreference === "metric") {
+        return Math.round(convertVolume(avgWater, "oz", "ml"));
+      } else {
+        return avgWater;
+      }
+    })() : "—";
   
   // Calculate average daily calories from meals
   const mealsByDate = {};
@@ -83,10 +126,12 @@ export default function Dashboard() {
   const avgMood = moodScores.length ? (moodScores.reduce((s, v) => s + v, 0) / moodScores.length).toFixed(1) : "—";
 
   const goalPct = (g) => g.progress != null ? g.progress : (g.targetValue > 0 ? Math.min(Math.round((g.currentValue / g.targetValue) * 100), 100) : 0);
-  const goalPie = goals.map((g) => ({
+  const colors = ["#6366f1", "#ec4899", "#10b981", "#f59e0b", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6"];
+  const goalPie = goals.map((g, idx) => ({
     name: g.title,
     value: Math.max(goalPct(g), 1), // min 1 so Recharts renders a sliver
     actual: goalPct(g),
+    fill: colors[idx % colors.length],
   }));
 
   return (
@@ -98,8 +143,8 @@ export default function Dashboard() {
         <StatCard label="Blood Pressure" value={`${avg(bp, "systolic")}/${avg(bp, "diastolic")}`} unit="mmHg" color="text-red-600" icon={HeartPulse} />
         <StatCard label="Avg Glucose" value={avg(bg, "level")} unit="mg/dL" color="text-amber-600" icon={Droplets} />
         <StatCard label="Avg Heart Rate" value={avg(hr, "bpm")} unit="bpm" color="text-pink-600" icon={Activity} />
-        <StatCard label="Current Weight" value={wt.length ? wt[wt.length - 1].value : "—"} unit="lbs" color="text-indigo-600" icon={Weight} />
-        <StatCard label="Avg Water Intake" value={avgWater} unit="oz/day" color="text-cyan-600" icon={GlassWater} />
+        <StatCard label="Current Weight" value={displayWeight} unit={weightUnit} color="text-indigo-600" icon={Weight} />
+        <StatCard label="Avg Water Intake" value={displayWater} unit={waterUnit} color="text-cyan-600" icon={GlassWater} />
         <StatCard label="Avg Daily Calories" value={avgDailyCalories} unit="kcal/day" color="text-orange-600" icon={Utensils} />
         <StatCard label="Avg Mood" value={avgMood} unit="/10" color="text-yellow-600" icon={parseFloat(avgMood) < 5 ? Frown : Smile} />
         <StatCard label="Avg Exercise" value={avgExerciseMinutes} unit="min/day" color="text-purple-600" icon={Dumbbell} />
@@ -113,14 +158,9 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="h-96">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                <Pie data={goalPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ actual }) => `${actual}%`}>
-                  {goalPie.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v, name, entry) => `${entry.payload.actual}%`} />
-                <Legend />
+              <PieChart>
+                <Pie data={goalPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`} />
+                <Tooltip />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -129,12 +169,18 @@ export default function Dashboard() {
               const pct = goalPct(g);
               return (
                 <div key={g._id}>
-                  <div className="flex justify-between text-sm mb-1">
+                  <div className="flex justify-between text-sm">
                     <span className="font-medium">{g.title}</span>
-                    <span className="text-gray-500">{g.currentValue} / {g.targetValue} {g.unit} ({pct}%)</span>
+                    <span className="text-gray-500">{pct}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div className={`h-3 rounded-full ${g.completed ? "bg-green-500" : "bg-indigo-500"}`} style={{ width: `${pct}%` }} />
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
+                    <div className={`h-2.5 rounded-full ${pct >= 100 ? "bg-green-500" : "bg-indigo-500"}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    {g.currentValue || 0} / {g.targetValue} {g.unit || ""}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {new Date(g.startDate).toLocaleDateString()} - {new Date(g.endDate).toLocaleDateString()}
                   </div>
                 </div>
               );
@@ -144,115 +190,124 @@ export default function Dashboard() {
         )}
       </Section>
 
-      {/* Blood Pressure */}
-      <Section title="Blood Pressure (30 Days)">
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={bpData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis domain={[50, 160]} />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="systolic" stroke="#ef4444" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="diastolic" stroke="#3b82f6" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </Section>
+      {/* Weekly Trend Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {bpData.length > 0 && (
+          <Section title="Blood Pressure">
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={bpData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="systolic" stroke="#ef4444" dot={false} />
+                  <Line type="monotone" dataKey="diastolic" stroke="#3b82f6" dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Section>
+        )}
 
-      {/* Blood Glucose */}
-      <Section title="Blood Glucose (30 Days)">
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={bgData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis domain={[60, 150]} />
-              <Tooltip />
-              <Line type="monotone" dataKey="glucose" stroke="#f59e0b" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </Section>
+        {hrData.length > 0 && (
+          <Section title="Heart Rate">
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={hrData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="bpm" stroke="#ec4899" dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Section>
+        )}
 
-      {/* Heart Rate */}
-      <Section title="Heart Rate (30 Days)">
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={hrData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis domain={[40, 130]} />
-              <Tooltip />
-              <Line type="monotone" dataKey="bpm" stroke="#ec4899" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </Section>
+        {bgData.length > 0 && (
+          <Section title="Blood Glucose">
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={bgData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="glucose" stroke="#f59e0b" dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Section>
+        )}
 
-      {/* Weight Trend */}
-      <Section title="Weight Trend (30 Days)">
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={wtData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis domain={["dataMin - 2", "dataMax + 2"]} />
-              <Tooltip />
-              <Line type="monotone" dataKey="weight" stroke="#6366f1" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </Section>
+        {wtData.length > 0 && (
+          <Section title="Weight">
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={wtData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="weight" stroke="#6366f1" dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Section>
+        )}
 
-      {/* Activity */}
-      <Section title="Activity (30 Days)">
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={actData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
-              <Tooltip />
-              <Legend />
-              <Bar yAxisId="left" dataKey="calories" fill="#6366f1" name="Calories Burned" />
-              <Bar yAxisId="right" dataKey="duration" fill="#06b6d4" name="Duration (min)" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </Section>
+        {actData.length > 0 && (
+          <Section title="Exercise">
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={actData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="calories" fill="#f59e0b" name="Calories" />
+                  <Bar dataKey="duration" fill="#8b5cf6" name="Minutes" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Section>
+        )}
 
-      {/* Water Intake */}
-      <Section title="Water Intake (30 Days)">
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={waterData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="amount" fill="#06b6d4" name="Water (oz)" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </Section>
+        {waterData.length > 0 && (
+          <Section title="Water Intake">
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={waterData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="amount" fill="#06b6d4" name={`Water (${unitPreference === "metric" ? "ml" : "oz"})`} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Section>
+        )}
 
-      {/* Mood Trend */}
-      <Section title="Mood Trend (30 Days)">
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={moodData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis domain={[0, 10]} />
-              <Tooltip />
-              <Line type="monotone" dataKey="mood" stroke="#eab308" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </Section>
+        {moodData.length > 0 && (
+          <Section title="Mood Trend">
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={moodData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis domain={[0, 10]} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="mood" stroke="#eab308" dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Section>
+        )}
+      </div>
     </div>
   );
 }

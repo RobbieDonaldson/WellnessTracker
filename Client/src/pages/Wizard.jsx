@@ -93,11 +93,10 @@ export default function Wizard() {
     zip: "",
   });
 
-  // Goals — one per category, pre-filled with suggestions
+  // Goals — one per category, pre-filled with suggestions (all enabled by default)
   const [goals, setGoals] = useState(
     GOAL_CATEGORIES.map((cat) => ({
       category: cat.key,
-      enabled: true,
       title: cat.suggestion.title,
       targetValue: cat.suggestion.targetValue,
       currentValue: 0,
@@ -128,7 +127,6 @@ export default function Wizard() {
 
   const canProceed = () => {
     if (step === 0) return profile.name && profile.age && profile.weight;
-    if (step === 1) return goals.some((g) => g.enabled);
     return true;
   };
 
@@ -144,17 +142,15 @@ export default function Wizard() {
           weightUnit: profile.weightUnit,
           address: { street: profile.street, city: profile.city, state: profile.state, zip: profile.zip },
         },
-        goals: goals
-          .filter((g) => g.enabled)
-          .map((g) => ({
-            title: g.title,
-            category: g.category === "blood_pressure" || g.category === "glucose" || g.category === "heart_rate" ? "other" : g.category,
-            targetValue: Number(g.targetValue),
-            currentValue: Number(g.currentValue),
-            unit: g.unit,
-            startDate: g.startDate,
-            endDate: g.endDate,
-          })),
+        goals: goals.map((g) => ({
+          title: g.title,
+          category: g.category,
+          targetValue: Number(g.targetValue),
+          currentValue: Number(g.currentValue),
+          unit: g.unit,
+          startDate: g.startDate,
+          endDate: g.endDate,
+        })),
       };
 
       const { data } = await authApi.completeWizard(payload);
@@ -204,7 +200,7 @@ export default function Wizard() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Field label="Age" value={profile.age} onChange={pSet("age")} type="number" min={1} max={150} required />
-                <Field label="Weight" value={profile.weight} onChange={pSet("weight")} type="number" min={50} max={800} step="0.1" required />
+                <Field label={`Weight (${profile.weightUnit})`} value={profile.weight} onChange={pSet("weight")} type="number" min={50} max={800} step="0.1" required />
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
                   <select value={profile.weightUnit} onChange={pSet("weightUnit")} className="w-full border rounded-lg px-3 py-2.5 text-sm">
@@ -228,60 +224,54 @@ export default function Wizard() {
           {step === 1 && (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold mb-1">Set Your Goals</h2>
-              <p className="text-sm text-gray-500 mb-4">Enable at least one goal per area. Customize the targets to fit your needs.</p>
+              <p className="text-sm text-gray-500 mb-4">One goal per area is automatically set up. Customize the targets to fit your needs.</p>
               <div className="space-y-3 max-h-[55vh] overflow-auto pr-2">
                 {GOAL_CATEGORIES.map((cat, idx) => {
                   const g = goals[idx];
                   return (
-                    <div key={cat.key} className={`border rounded-xl p-4 transition ${g.enabled ? "border-indigo-300 bg-indigo-50/30" : "border-gray-200 opacity-60"}`}>
+                    <div key={cat.key} className="border rounded-xl p-4 transition border-indigo-300 bg-indigo-50/30">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${cat.color}`}>{cat.label}</span>
                           <Target size={14} className="text-gray-400" />
                         </div>
-                        <label className="flex items-center gap-2 text-sm cursor-pointer">
-                          <input type="checkbox" checked={g.enabled} onChange={(e) => updateGoal(idx, "enabled", e.target.checked)} className="rounded" />
-                          Enable
-                        </label>
                       </div>
-                      {g.enabled && (
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                          <div className="md:col-span-2">
-                            <input
-                              value={g.title}
-                              onChange={(e) => updateGoal(idx, "title", e.target.value)}
-                              className="w-full border rounded-lg px-3 py-2 text-sm"
-                              placeholder="Goal title"
-                              required
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <input
-                              type="number"
-                              value={g.targetValue}
-                              onChange={(e) => updateGoal(idx, "targetValue", e.target.value)}
-                              className="w-full border rounded-lg px-3 py-2 text-sm"
-                              placeholder="Target"
-                              min={1}
-                            />
-                            <input
-                              value={g.unit}
-                              onChange={(e) => updateGoal(idx, "unit", e.target.value)}
-                              className="w-20 border rounded-lg px-2 py-2 text-sm"
-                              placeholder="unit"
-                            />
-                          </div>
-                          <DatePicker
-                            selected={g.endDate ? new Date(g.endDate) : null}
-                            onChange={(d) => updateGoal(idx, "endDate", d ? d.toISOString() : "")}
-                            showTimeSelect
-                            dateFormat="MMMM d, yyyy h:mm aa"
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <div className="md:col-span-2">
+                          <input
+                            value={g.title}
+                            onChange={(e) => updateGoal(idx, "title", e.target.value)}
                             className="w-full border rounded-lg px-3 py-2 text-sm"
-                            placeholderText="Select end date & time"
-                            withPortal
+                            placeholder="Goal title"
+                            required
                           />
                         </div>
-                      )}
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            value={g.targetValue}
+                            onChange={(e) => updateGoal(idx, "targetValue", e.target.value)}
+                            className="w-full border rounded-lg px-3 py-2 text-sm"
+                            placeholder="Target"
+                            min={1}
+                          />
+                          <input
+                            value={g.unit}
+                            onChange={(e) => updateGoal(idx, "unit", e.target.value)}
+                            className="w-20 border rounded-lg px-2 py-2 text-sm"
+                            placeholder="unit"
+                          />
+                        </div>
+                        <DatePicker
+                          selected={g.endDate ? new Date(g.endDate) : null}
+                          onChange={(d) => updateGoal(idx, "endDate", d ? d.toISOString() : "")}
+                          showTimeSelect
+                          dateFormat="MMMM d, yyyy h:mm aa"
+                          className="w-full border rounded-lg px-3 py-2 text-sm"
+                          placeholderText="Select end date & time"
+                          withPortal
+                        />
+                      </div>
                     </div>
                   );
                 })}
@@ -299,9 +289,9 @@ export default function Wizard() {
                 <p><span className="font-medium">Weight:</span> {profile.weight} {profile.weightUnit}</p>
                 {profile.city && <p><span className="font-medium">Location:</span> {profile.city}{profile.state ? `, ${profile.state}` : ""}</p>}
               </div>
-              <h3 className="font-semibold text-sm text-gray-600 uppercase mt-4">Goals ({goals.filter((g) => g.enabled).length})</h3>
+              <h3 className="font-semibold text-sm text-gray-600 uppercase mt-4">Goals ({goals.length})</h3>
               <div className="space-y-2">
-                {goals.filter((g) => g.enabled).map((g, i) => {
+                {goals.map((g, i) => {
                   const cat = GOAL_CATEGORIES.find((c) => c.key === g.category);
                   return (
                     <div key={i} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3 text-sm">

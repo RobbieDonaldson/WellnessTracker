@@ -2,16 +2,47 @@ import axios from "axios";
 
 const api = axios.create({ baseURL: "/api" });
 
+// Simple request cache with 30 second TTL
+const requestCache = new Map();
+const CACHE_TTL = 30000; // 30 seconds
+
+// Generate cache key from URL and params
+const getCacheKey = (url, params) => {
+  const paramsStr = params ? JSON.stringify(params) : "";
+  return `${url}:${paramsStr}`;
+};
+
 // Attach JWT token to every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  
+  // Check cache for GET requests
+  if (config.method === "get") {
+    const cacheKey = getCacheKey(config.url, config.params);
+    const cached = requestCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      config.adapter = () => Promise.resolve({ data: cached.data, status: 200, statusText: "OK", headers: {}, config });
+    }
+  }
+  
   return config;
 });
 
 // Redirect to login on 401
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    // Cache successful GET responses
+    if (res.config.method === "get" && res.status === 200) {
+      const cacheKey = getCacheKey(res.config.url, res.config.params);
+      requestCache.set(cacheKey, { data: res.data, timestamp: Date.now() });
+    }
+    // Invalidate cache on mutations so subsequent GETs return fresh data
+    if (["post", "put", "patch", "delete"].includes(res.config.method)) {
+      requestCache.clear();
+    }
+    return res;
+  },
   (err) => {
     if (err.response?.status === 401 && !err.config.url.includes("/auth/")) {
       localStorage.removeItem("token");

@@ -69,16 +69,42 @@ async function computeProgress(goal) {
         if (["mile", "miles", "mi"].includes(unit)) {
           const agg = await Activity.aggregate([
             { $match: { ...dateFilter, distance: { $ne: null } } },
-            { $group: { _id: null, total: { $sum: "$distance" } } },
+            {
+              $group: {
+                _id: null,
+                total: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$distanceUnit", "km"] },
+                      { $multiply: ["$distance", 0.621371] },
+                      "$distance"
+                    ]
+                  }
+                }
+              }
+            },
           ]);
           return Math.round((agg[0]?.total || 0) * 100) / 100;
         }
         if (["km", "kilometers"].includes(unit)) {
           const agg = await Activity.aggregate([
             { $match: { ...dateFilter, distance: { $ne: null } } },
-            { $group: { _id: null, total: { $sum: "$distance" } } },
+            {
+              $group: {
+                _id: null,
+                total: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$distanceUnit", "mi"] },
+                      { $multiply: ["$distance", 1.60934] },
+                      "$distance"
+                    ]
+                  }
+                }
+              }
+            },
           ]);
-          return Math.round((agg[0]?.total || 0) * 1.60934 * 100) / 100;
+          return Math.round((agg[0]?.total || 0) * 100) / 100;
         }
         if (["step", "steps"].includes(unit)) {
           const agg = await Activity.aggregate([
@@ -281,7 +307,14 @@ exports.getAll = async (req, res, next) => {
     const result = await paginatedQuery(Goal, req.query, ["title", "category", "unit"], "endDate", "endDate", { userId: req.user.id });
 
     // Auto-sync currentValue from tracked data
+    // Skip computation for goals that don't need it to reduce DB queries
+    const now = new Date();
     const updates = result.data.map(async (g) => {
+      // Skip future goals (not started yet)
+      if (g.startDate && new Date(g.startDate) > now) return g;
+      // Skip completed goals whose end date has passed
+      if (g.completed && g.endDate && new Date(g.endDate) < now) return g;
+
       const newVal = await computeProgress(g);
       let completed;
       let progress = null; // null means frontend should use default calc
@@ -374,6 +407,12 @@ exports.getById = async (req, res, next) => {
 // POST /api/goals
 exports.create = async (req, res, next) => {
   try {
+    const { category } = req.body;
+    // Check if a goal already exists for this category
+    const existingGoal = await Goal.findOne({ userId: req.user.id, category });
+    if (existingGoal) {
+      return res.status(400).json({ error: "A goal already exists for this category. Please edit the existing goal instead." });
+    }
     const goal = await Goal.create({ ...req.body, userId: req.user.id });
     res.status(201).json(goal);
   } catch (err) {

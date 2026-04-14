@@ -1,5 +1,9 @@
 const jwt = require("jsonwebtoken");
 
+const isProd = process.env.NODE_ENV === "production";
+if (isProd && !process.env.JWT_SECRET) {
+  throw new Error("FATAL: JWT_SECRET environment variable must be set in production.");
+}
 const JWT_SECRET = process.env.JWT_SECRET || "wellness-tracker-dev-secret-change-in-prod";
 
 function verifyToken(req, res, next) {

@@ -17,10 +17,14 @@ const storage = multer.diskStorage({
     cb(null, `${req.user.id}${ext}`);
   },
 });
+const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+const ALLOWED_MIMETYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 const fileFilter = (_req, file, cb) => {
-  const allowed = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
   const ext = path.extname(file.originalname).toLowerCase();
-  cb(null, allowed.includes(ext));
+  if (!ALLOWED_EXTENSIONS.includes(ext) || !ALLOWED_MIMETYPES.includes(file.mimetype)) {
+    return cb(new Error("Only image files (jpg, png, gif, webp) are allowed."), false);
+  }
+  cb(null, true);
 };
 exports.avatarUpload = multer({ storage, fileFilter, limits: { fileSize: 2 * 1024 * 1024 } });
 
@@ -138,7 +142,7 @@ exports.completeWizard = async (req, res, next) => {
 // PUT /api/auth/profile
 exports.updateProfile = async (req, res, next) => {
   try {
-    const allowed = ["name", "age", "weight", "weightUnit", "address"];
+    const allowed = ["name", "age", "weight", "weightUnit", "address", "unitPreference"];
     const updates = {};
     allowed.forEach((key) => {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
