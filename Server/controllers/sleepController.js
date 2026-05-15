@@ -1,5 +1,6 @@
 const Sleep = require("../models/Sleep");
 const { paginatedQuery } = require("../utils/queryHelper");
+const { goalProgressCache } = require("../utils/cache");
 
 // GET /api/sleep
 exports.getAll = async (req, res, next) => {
@@ -27,6 +28,7 @@ exports.create = async (req, res, next) => {
   try {
     const record = new Sleep({ ...req.body, userId: req.user.id });
     await record.save();
+    goalProgressCache.deletePattern(`goal:${req.user.id}:*`);
     res.status(201).json(record);
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -45,6 +47,7 @@ exports.update = async (req, res, next) => {
     const { userId, ...body } = req.body;
     Object.assign(record, body);
     await record.save();
+    goalProgressCache.deletePattern(`goal:${req.user.id}:*`);
     res.json(record);
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -59,6 +62,7 @@ exports.remove = async (req, res, next) => {
   try {
     const record = await Sleep.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
     if (!record) return res.status(404).json({ error: "Sleep record not found" });
+    goalProgressCache.deletePattern(`goal:${req.user.id}:*`);
     res.json({ message: "Sleep record deleted" });
   } catch (err) {
     next(err);

@@ -1,11 +1,10 @@
 const mongoose = require("mongoose");
 
-const goalSchema = new mongoose.Schema(
+const goalTemplateSchema = new mongoose.Schema(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     title: {
       type: String,
-      required: [true, "Goal title is required"],
+      required: [true, "Template title is required"],
       trim: true,
       maxlength: 200,
     },
@@ -17,11 +16,6 @@ const goalSchema = new mongoose.Schema(
     targetValue: {
       type: Number,
       required: [true, "Target value is required"],
-      min: 0,
-    },
-    currentValue: {
-      type: Number,
-      default: 0,
       min: 0,
     },
     unit: {
@@ -38,25 +32,23 @@ const goalSchema = new mongoose.Schema(
       trim: true,
       maxlength: 50,
     },
-    startDate: {
-      type: Date,
-      default: Date.now,
-    },
-    endDate: {
-      type: Date,
-      required: [true, "End date is required"],
-    },
-    completed: {
-      type: Boolean,
-      default: false,
-    },
-    notes: {
+    description: {
       type: String,
       trim: true,
       maxlength: 500,
+    },
+    suggestedEndDays: {
+      type: Number,
+      default: 30,
+      min: 1,
+      max: 365,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Goal", goalSchema);
+module.exports = mongoose.model("GoalTemplate", goalTemplateSchema);

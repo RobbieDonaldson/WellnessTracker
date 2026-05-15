@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [bg, setBg] = useState([]);
   const [hr, setHr] = useState([]);
   const [wt, setWt] = useState([]);
+  const [latestWeight, setLatestWeight] = useState([]);
   const [activities, setActivities] = useState([]);
   const [water, setWater] = useState([]);
   const [meals, setMeals] = useState([]);
@@ -46,18 +47,20 @@ export default function Dashboard() {
       bloodPressureApi.getAll(params),
       bloodGlucoseApi.getAll(params),
       heartRateApi.getAll(params),
-      weightApi.getAll(params),
+      weightApi.getAll({ limit: 1, sort: "-date" }), // Get most recent weight without date filter
+      weightApi.getAll(params), // Get week-filtered weight for trend chart
       activityApi.getAll(params),
       waterIntakeApi.getAll(params),
       mealApi.getAll(params),
       journalApi.getAll(params),
     ])
-    .then(([g, b, bg, h, w, a, wi, m, j]) => {
+    .then(([g, b, bg, h, wLatest, w, a, wi, m, j]) => {
       setGoals(g.data.data || []);
       setBp(b.data.data || []);
       setBg(bg.data.data || []);
       setHr(h.data.data || []);
       setWt(w.data.data || []);
+      setLatestWeight(wLatest.data.data || []); // Store latest weight separately
       setActivities(a.data.data || []);
       setWater(wi.data.data || []);
       setMeals(m.data.data || []);
@@ -89,10 +92,10 @@ export default function Dashboard() {
   const weightUnit = unitPreference === "metric" ? "kg" : "lbs";
   const waterUnit = unitPreference === "metric" ? "ml/day" : "oz/day";
   
-  // Convert weight display
-  const displayWeight = wt.length ? 
+  // Convert weight display (use latestWeight for current weight stat card)
+  const displayWeight = latestWeight.length ?
     (() => {
-      const lastWt = wt[wt.length - 1];
+      const lastWt = latestWeight[0];
       if (unitPreference === "metric") {
         if (lastWt.unit === "lbs") return convertWeight(lastWt.value, "lbs", "kg").toFixed(1);
         return lastWt.value;
@@ -129,7 +132,6 @@ export default function Dashboard() {
   const colors = ["#6366f1", "#ec4899", "#10b981", "#f59e0b", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6"];
   const goalPie = goals.map((g, idx) => ({
     name: g.title,
-    value: Math.max(goalPct(g), 1), // min 1 so Recharts renders a sliver
     actual: goalPct(g),
     fill: colors[idx % colors.length],
   }));
@@ -137,6 +139,13 @@ export default function Dashboard() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+
+      {/* Date Range Indicator */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-6">
+        <p className="text-sm text-blue-700">
+          <strong>Showing data for this week</strong> (Sunday to today). No records outside this date range are displayed.
+        </p>
+      </div>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -155,37 +164,16 @@ export default function Dashboard() {
         {goals.length === 0 ? (
           <p className="text-gray-400 text-center py-8">No goals yet. Add some goals to track your progress!</p>
         ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="h-96">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={goalPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`} />
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="space-y-3">
-            {goals.map((g) => {
-              const pct = goalPct(g);
-              return (
-                <div key={g._id}>
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium">{g.title}</span>
-                    <span className="text-gray-500">{pct}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
-                    <div className={`h-2.5 rounded-full ${pct >= 100 ? "bg-green-500" : "bg-indigo-500"}`} style={{ width: `${pct}%` }} />
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    {g.currentValue || 0} / {g.targetValue} {g.unit || ""}
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    {new Date(g.startDate).toLocaleDateString()} - {new Date(g.endDate).toLocaleDateString()}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={goalPie} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" domain={[0, 100]} />
+              <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 10 }} />
+              <Tooltip formatter={(value) => `${value}%`} />
+              <Bar dataKey="actual" fill="#6366f1" name="Progress" />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
         )}
       </Section>

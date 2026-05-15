@@ -1,14 +1,17 @@
 const Activity = require("../models/Activity");
 const Weight = require("../models/Weight");
+const mongoose = require("mongoose");
 const { estimateCalories } = require("../utils/calorieCalculator");
 const { paginatedQuery } = require("../utils/queryHelper");
+const { goalProgressCache } = require("../utils/cache");
 
 const DEFAULT_WEIGHT_LBS = 170;
 
 async function getLatestWeight(userId) {
   const latest = await Weight.findOne({ userId }).sort({ date: -1 }).lean();
   if (!latest) return DEFAULT_WEIGHT_LBS;
-  return latest.unit === "kg" ? latest.value * 2.205 : latest.value;
+  // Use precise conversion factor: 1 kg = 2.20462 lbs
+  return latest.unit === "kg" ? latest.value * 2.20462 : latest.value;
 }
 
 // GET /api/activities
@@ -53,6 +56,7 @@ exports.create = async (req, res, next) => {
     }
     delete data.manualCalories;
     const activity = await Activity.create(data);
+    goalProgressCache.deletePattern(`goal:${req.user.id}:*`);
     res.status(201).json(activity);
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -77,6 +81,7 @@ exports.update = async (req, res, next) => {
       runValidators: true,
     });
     if (!activity) return res.status(404).json({ error: "Activity not found" });
+    goalProgressCache.deletePattern(`goal:${req.user.id}:*`);
     res.json(activity);
   } catch (err) {
     if (err.name === "ValidationError") {
@@ -91,6 +96,7 @@ exports.remove = async (req, res, next) => {
   try {
     const activity = await Activity.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
     if (!activity) return res.status(404).json({ error: "Activity not found" });
+    goalProgressCache.deletePattern(`goal:${req.user.id}:*`);
     res.json({ message: "Activity deleted" });
   } catch (err) {
     next(err);

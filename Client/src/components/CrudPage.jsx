@@ -37,6 +37,7 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra,
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const params = { page, limit: pageSize };
       if (search.trim()) params.search = search.trim();
@@ -49,6 +50,7 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra,
       setMeta(r.data.meta || { page, pageSize, totalPages: 0, totalCount: 0 });
     } catch (e) {
       console.error(e);
+      setError(e.response?.data?.error || "Failed to load data");
       setRows([]);
       setMeta({ page, pageSize, totalPages: 0, totalCount: 0 });
     }
@@ -194,6 +196,13 @@ export default function CrudPage({ title, api, columns, formFields, renderExtra,
       </div>
 
       {renderExtra && renderExtra(rows)}
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 text-red-600 text-sm rounded-lg px-4 py-3 mb-4">
+          {error}
+        </div>
+      )}
 
       {/* Table */}
       {loading ? (

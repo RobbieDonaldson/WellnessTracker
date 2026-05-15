@@ -17,6 +17,7 @@ export default function Account() {
   const [phone, setPhone] = useState("");
   const [mfaMsg, setMfaMsg] = useState("");
   const [mfaLoading, setMfaLoading] = useState(false);
+  const [mfaPassword, setMfaPassword] = useState("");
 
   // Unit preference state
   const [unitPreference, setUnitPreference] = useState("standard");
@@ -115,12 +116,14 @@ export default function Account() {
   // --- MFA: Disable ---
   const disableMfa = async () => {
     setMfaMsg("");
+    if (!mfaPassword) return setMfaMsg("Enter your password to disable MFA.");
     setMfaLoading(true);
     try {
-      const { data } = await authApi.mfaDisable();
+      const { data } = await authApi.mfaDisable({ password: mfaPassword });
       setMfaEnabled(false);
       setMfaMethod("");
       setTotpSetup(null);
+      setMfaPassword("");
       setMfaMsg(data.message);
     } catch (err) {
       setMfaMsg(err.response?.data?.error || "Failed.");
@@ -205,14 +208,27 @@ export default function Account() {
 
           {mfaEnabled ? (
             <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+              <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+                <div className="flex items-center gap-2 mb-3">
                   <ShieldCheck size={18} className="text-green-600" />
                   <span className="text-sm font-medium text-green-700">MFA is enabled via {methodLabel[mfaMethod] || mfaMethod}</span>
                 </div>
-                <button onClick={disableMfa} disabled={mfaLoading} className="text-sm text-red-600 hover:underline font-medium">
-                  Disable
-                </button>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Enter your password to disable MFA</label>
+                    <input
+                      type="password"
+                      value={mfaPassword}
+                      onChange={(e) => setMfaPassword(e.target.value)}
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                      placeholder="Current password"
+                      minLength={6}
+                    />
+                  </div>
+                  <button onClick={disableMfa} disabled={mfaLoading} className="text-sm text-red-600 hover:underline font-medium">
+                    {mfaLoading ? "Disabling..." : "Disable"}
+                  </button>
+                </div>
               </div>
             </div>
           ) : (

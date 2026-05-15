@@ -54,8 +54,17 @@ exports.enableOtp = async (req, res, next) => {
 // POST /api/auth/mfa/disable
 exports.disable = async (req, res, next) => {
   try {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: "Password is required to disable MFA." });
+
+    const user = await User.findById(req.user.id).select("+password");
+    if (!user) return res.status(404).json({ error: "User not found." });
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) return res.status(401).json({ error: "Incorrect password." });
+
     await User.findByIdAndUpdate(req.user.id, {
-      mfaEnabled: false, mfaMethod: "", totpSecret: "", pendingOtp: "", pendingOtpExpires: null,
+      mfaEnabled: false, mfaMethod: "", totpSecret: undefined, pendingOtp: undefined, pendingOtpExpires: null,
     });
     res.json({ message: "MFA disabled." });
   } catch (err) { next(err); }

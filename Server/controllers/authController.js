@@ -14,7 +14,9 @@ const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, AVATAR_DIR),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${req.user.id}${ext}`);
+    // Use UUID instead of user ID to prevent path traversal and filename collisions
+    const uuid = require("crypto").randomUUID();
+    cb(null, `${uuid}${ext}`);
   },
 });
 const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
@@ -204,7 +206,8 @@ exports.forgotPassword = async (req, res, next) => {
     // Always return success to avoid email enumeration
     if (!user) return res.json({ message: "If that email exists, a reset code has been sent." });
 
-    const token = crypto.randomInt(100000, 999999).toString();
+    // Use crypto.randomBytes for a more secure token (32 bytes = 64 hex chars)
+    const token = crypto.randomBytes(32).toString("hex");
     user.resetToken = token;
     user.resetTokenExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 min
     await user.save();

@@ -103,6 +103,8 @@ const getFormFields = (unitPreference) => {
     { name: "targetValue", label: "Target Value", type: "number", required: true, min: 0 },
     { name: "currentValue", label: "Current Value", type: "number", min: 0, default: 0 },
     { name: "unit", label: isMetric ? "Unit (e.g., km, kg, ml)" : "Unit (e.g., miles, lbs, oz)" },
+    { name: "threshold", label: "Threshold (optional)", type: "number", min: 0, helpText: "For hydration: daily oz target. For blood glucose: mg/dL threshold." },
+    { name: "thresholdUnit", label: "Threshold Unit", helpText: "e.g., oz, mg/dL" },
     { name: "startDate", label: "Start Date", type: "date" },
     { name: "endDate", label: "End Date", type: "date", required: true },
     { name: "notes", label: "Notes", type: "textarea" },

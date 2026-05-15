@@ -1,6 +1,7 @@
 const Journal = require("../models/Journal");
 const { paginatedQuery } = require("../utils/queryHelper");
 const { getVersesForMood } = require("../utils/bibleVerses");
+const { goalProgressCache } = require("../utils/cache");
 
 exports.getAll = async (req, res, next) => {
   try {
@@ -20,6 +21,7 @@ exports.getById = async (req, res, next) => {
 exports.create = async (req, res, next) => {
   try {
     const record = await Journal.create({ ...req.body, userId: req.user.id });
+    goalProgressCache.deletePattern(`goal:${req.user.id}:*`);
     res.status(201).json(record);
   } catch (err) {
     if (err.name === "ValidationError") return res.status(400).json({ error: err.message });
@@ -32,6 +34,7 @@ exports.update = async (req, res, next) => {
     const { userId, ...body } = req.body;
     const record = await Journal.findOneAndUpdate({ _id: req.params.id, userId: req.user.id }, body, { new: true, runValidators: true });
     if (!record) return res.status(404).json({ error: "Journal entry not found" });
+    goalProgressCache.deletePattern(`goal:${req.user.id}:*`);
     res.json(record);
   } catch (err) {
     if (err.name === "ValidationError") return res.status(400).json({ error: err.message });
@@ -43,6 +46,7 @@ exports.remove = async (req, res, next) => {
   try {
     const record = await Journal.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
     if (!record) return res.status(404).json({ error: "Journal entry not found" });
+    goalProgressCache.deletePattern(`goal:${req.user.id}:*`);
     res.json({ message: "Journal entry deleted" });
   } catch (err) { next(err); }
 };

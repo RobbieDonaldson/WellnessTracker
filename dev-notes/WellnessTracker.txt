@@ -1,0 +1,108 @@
+# Deployment & Subscription Plan
+
+## Recommended Hosting Stack
+
+| Component | Service | Free Tier | Notes |
+|-----------|---------|-----------|-------|
+| **Linux VPS** | [Hetzner](https://hetzner.com) | — | €3.79/mo CX22 (2 vCPU, 4GB RAM) — best value in the market |
+| **Alternative VPS** | [DigitalOcean](https://digitalocean.com) | $200 credit / 60 days | $6/mo Basic Droplet |
+| **MongoDB** | [MongoDB Atlas](https://mongodb.com/atlas) | 512MB free forever | Free M0 cluster; upgrade to M10 ($57/mo) when needed |
+| **Domain + DNS** | [Cloudflare](https://cloudflare.com) | Free tier | Free SSL, CDN, DDoS protection |
+| **Email (transactional)** | [Resend](https://resend.com) or [Brevo](https://brevo.com) | 100–300 emails/day free | Password resets, notifications |
+| **Payments** | [Stripe](https://stripe.com) | No monthly fee | 2.9% + 30¢ per transaction |
+| **File storage (future)** | [Cloudflare R2](https://cloudflare.com/r2) | 10GB free | Profile photos, exports |
+
+**My top pick**: Hetzner CX22 + MongoDB Atlas Free + Cloudflare. Total cost: **~$4/mo** to start.
+
+---
+
+## Subscription Tiers
+
+| | **Free** | **Plus** ($4.99/mo) | **Pro** ($12.99/mo) |
+|---|---|---|---|
+| Activity tracking | ✓ | ✓ | ✓ |
+| Meal logging | ✓ | ✓ | ✓ |
+| Sleep tracking | ✓ | ✓ | ✓ |
+| Vitals (BP, glucose, HR, weight) | 7-day history | Full history | Full history |
+| Water intake | ✓ | ✓ | ✓ |
+| Goals | 2 active | Unlimited | Unlimited |
+| Dashboard charts | 7-day | 90-day | Unlimited |
+| Data export (CSV/PDF) | — | ✓ | ✓ |
+| Custom reminders/notifications | — | ✓ | ✓ |
+| AI insights & recommendations | — | — | ✓ |
+| Priority support | — | — | ✓ |
+| Users | 1 | 1 | Family (up to 5) |
+
+---
+
+## Deployment Steps
+
+### 1. Pre-deployment code changes
+- **Environment config** — split `.env` for dev/staging/prod (MONGO_URI, JWT_SECRET, STRIPE keys, CORS origins)
+- **Production build** — `vite build` outputs static files; serve with Express or Nginx
+- **Helmet + rate limiting** — add `helmet`, `express-rate-limit`, `cors` with allowlist
+- **Logging** — add `morgan` or `pino` for structured request logs
+- **Error handling** — global error handler that doesn't leak stack traces in prod
+
+### 2. Server setup (Hetzner/DO)
+```
+# On the VPS:
+1. Ubuntu 24.04 LTS
+2. Create non-root user, disable root SSH, enable firewall (ufw)
+3. Install Node.js 22 LTS via nvm
+4. Install Nginx as reverse proxy
+5. Install PM2 for process management
+6. Set up Let's Encrypt SSL via Certbot (or just use Cloudflare proxy)
+```
+
+### 3. Nginx config
+- Proxy `/api/*` → `localhost:5000` (Express)
+- Serve `/` → Vite build output (`dist/`)
+- Enable gzip, caching headers for static assets
+
+### 4. CI/CD
+- **GitHub Actions** — on push to `main`: build client, SCP files to VPS, `pm2 restart`
+- Or use **Coolify** (free, self-hosted PaaS on your VPS) for push-to-deploy
+
+### 5. Stripe integration
+- Add `subscription` field to User model (`free`, `plus`, `pro`)
+- Create Stripe Checkout sessions for upgrades
+- Webhook endpoint to handle `checkout.session.completed`, `customer.subscription.updated/deleted`
+- Middleware to check tier limits (e.g., goal count, history depth)
+
+### 6. Monitoring
+- **Uptime**: [UptimeRobot](https://uptimerobot.com) (free, 50 monitors)
+- **Logs**: PM2 logs + optional Loki/Grafana on the same VPS
+- **Errors**: [Sentry](https://sentry.io) free tier (5K errors/mo)
+
+---
+TODOs:
+---
+1.  Debug auto calorie estimator on Activity page; calculations don't seem to be accurate
+2.  Add prescription/supplement tracker 
+3.  Add diet/recipe builder
+4.  Update meals with % of recommended daily allowance, add nutrients, calories consumed today
+5.  Group meal items into groups (meals) and clone meals
+6.  Add notifications module that alerts user when goals for day haven't been met and allow user to create custom notifications
+7.  Create subscription tiers and pricing and create Tier-based feature gating middleware** — enforce limits
+8.  Allow user to pause/start subscription, delete account, change subscription plan, export grids in CVS
+9.  Create marketing pages: home, about, features, plans, pricing...
+10. Implement **Stripe + subscription model** — monetization
+11. Create a super user admin panel for administrating application, subscriptions and payments
+12. Rename app:
+	Ascend
+	GraceTrack
+	AbideWell
+	FaithPulse
+	SoulSync
+	Rooted
+	LightWalk
+	ArmorWellness
+	SpiritFit
+	FaithForm
+	RenewU
+	FaithLog
+13. **PM2 + GitHub Actions** — reliable process management + CI/CD
+14. **Update readmes and all documentation
+
+

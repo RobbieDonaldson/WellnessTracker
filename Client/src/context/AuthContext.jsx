@@ -27,6 +27,23 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
   }, []);
 
+  // Periodic token verification (every 5 minutes)
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      try {
+        await authApi.getProfile();
+      } catch (err) {
+        // Token expired or invalid, log out
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setUser(null);
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+    return () => clearInterval(interval);
+  }, []);
+
   const login = async (email, password) => {
     const { data } = await authApi.login({ email, password });
     // MFA challenge — don't store token yet

@@ -10,12 +10,14 @@ require("dotenv").config();
 const isProd = process.env.NODE_ENV === "production";
 
 const connectDB = require("./config/db");
+const seedGoalTemplates = require("./utils/seedGoalTemplates");
 
 // Route imports
 const activityRoutes = require("./routes/activityRoutes");
 const mealRoutes = require("./routes/mealRoutes");
 const sleepRoutes = require("./routes/sleepRoutes");
 const goalRoutes = require("./routes/goalRoutes");
+const goalTemplateRoutes = require("./routes/goalTemplateRoutes");
 const bloodPressureRoutes = require("./routes/bloodPressureRoutes");
 const bloodGlucoseRoutes = require("./routes/bloodGlucoseRoutes");
 const heartRateRoutes = require("./routes/heartRateRoutes");
@@ -114,6 +116,7 @@ app.use("/api/activities", apiLimiter, verifyToken, activityRoutes);
 app.use("/api/meals", apiLimiter, verifyToken, mealRoutes);
 app.use("/api/sleep", apiLimiter, verifyToken, sleepRoutes);
 app.use("/api/goals", apiLimiter, verifyToken, goalRoutes);
+app.use("/api/goal-templates", apiLimiter, verifyToken, goalTemplateRoutes);
 app.use("/api/blood-pressure", apiLimiter, verifyToken, bloodPressureRoutes);
 app.use("/api/blood-glucose", apiLimiter, verifyToken, bloodGlucoseRoutes);
 app.use("/api/heart-rate", apiLimiter, verifyToken, heartRateRoutes);
@@ -167,6 +170,7 @@ app.use((err, _req, res, _next) => {
 // ---------------------------------------------------------------------------
 async function start() {
   await connectDB();
+  await seedGoalTemplates();
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });

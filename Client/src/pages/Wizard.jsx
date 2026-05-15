@@ -35,7 +35,7 @@ const GOAL_CATEGORIES = [
     key: "hydration",
     label: "Hydration",
     color: "bg-cyan-100 text-cyan-700",
-    suggestion: { title: "Drink 64 oz water daily", targetValue: 30, unit: "days", endDays: 30 },
+    suggestion: { title: "Drink 64 oz water daily", targetValue: 30, unit: "days", endDays: 30, threshold: 64, thresholdUnit: "oz" },
   },
   {
     key: "blood_pressure",
@@ -47,7 +47,7 @@ const GOAL_CATEGORIES = [
     key: "blood_glucose",
     label: "Blood Glucose",
     color: "bg-amber-100 text-amber-700",
-    suggestion: { title: "Maintain fasting glucose < 100", targetValue: 30, unit: "days", endDays: 30 },
+    suggestion: { title: "Maintain fasting glucose below 100", targetValue: 30, unit: "days", endDays: 30, threshold: 100, thresholdUnit: "mg/dL" },
   },
   {
     key: "heart_rate",
@@ -101,6 +101,8 @@ export default function Wizard() {
       targetValue: cat.suggestion.targetValue,
       currentValue: 0,
       unit: cat.suggestion.unit,
+      threshold: cat.suggestion.threshold || "",
+      thresholdUnit: cat.suggestion.thresholdUnit || "",
       startDate: today(),
       endDate: futureDate(cat.suggestion.endDays),
     }))
@@ -108,6 +110,14 @@ export default function Wizard() {
 
   const updateGoal = (idx, field, value) => {
     setGoals((prev) => prev.map((g, i) => (i === idx ? { ...g, [field]: value } : g)));
+  };
+
+  const validateEndDate = (dateStr) => {
+    if (!dateStr) return true;
+    const endDate = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return endDate >= today;
   };
 
   useEffect(() => {
@@ -134,6 +144,14 @@ export default function Wizard() {
     setSaving(true);
     setError("");
     try {
+      // Validate goal end dates are not in the past
+      const invalidGoals = goals.filter((g) => !validateEndDate(g.endDate));
+      if (invalidGoals.length > 0) {
+        setError("All goal end dates must be in the future or today.");
+        setSaving(false);
+        return;
+      }
+
       const payload = {
         profile: {
           name: profile.name,
@@ -148,6 +166,8 @@ export default function Wizard() {
           targetValue: Number(g.targetValue),
           currentValue: Number(g.currentValue),
           unit: g.unit,
+          threshold: g.threshold ? Number(g.threshold) : undefined,
+          thresholdUnit: g.thresholdUnit || undefined,
           startDate: g.startDate,
           endDate: g.endDate,
         })),
